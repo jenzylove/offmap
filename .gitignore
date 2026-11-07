@@ -1,22 +1,6 @@
-# secrets and keys
-.env
-.env.*
-!.env.example
-*.pem
-*.key
-**/near-credentials/
-**/*credentials*.json
-keys/
-# build output
-target/
-node_modules/
-dist/
-.next/
-out/
-*.wasm
-!res/*.wasm
-# local
-.DS_Store
-*.log
-.vercel/
-coverage/
+node_modules
+
+# foundry deps (install with: cd contracts/base && forge install foundry-rs/forge-std --no-git)
+contracts/base/lib/
+contracts/base/cache/
+contracts/base/out/
