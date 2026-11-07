@@ -1,4 +1,4 @@
-# Blindside PRD
+# Offmap PRD
 
 Private borrowing on real liquidity. Borrow USDC against your crypto, and nobody can see your loan, your collateral or your liquidation price. Private while you want it, yours whenever you want out.
 
@@ -13,7 +13,7 @@ Every loan and leveraged position on a public chain is a target.
 1. **Positions are public.** On every lending market and perps venue, anyone can read your size, your collateral and the exact price where you get liquidated.
 2. **Public levels get hunted.** Traders and bots read liquidation data and push price into those levels. In 2025 one of the most watched traders on a public perps venue was reported "hunted twice in one day", losing about $14.3M, and was later fully liquidated for about $99M. That case is perps. **To do before the build:** add at least one sourced lending market case, or public liquidation map tooling aimed at lending positions. If none is found, frame the problem around liquidation maps in general and say plainly that the strongest evidence is from perps.
 3. **Hiding who you are does not hide your level.** Private accounts that hold loans exist since September 2026. The borrower's identity is hidden, but the position, its size and its liquidation price are still public on the market. **Hunters don't need your name; they need your level.**
-4. **Confidential routing alone does not fix it.** Deposits and payouts are ordinary public transactions; confidential routing only hides the middle. Simple heuristics (amount within 2%, payout within 1 hour, address reuse, pair rarity) can link most confidential trades at low volume. Blindside runs and publishes this study on its own traffic (5.10).
+4. **Confidential routing alone does not fix it.** Deposits and payouts are ordinary public transactions; confidential routing only hides the middle. Simple heuristics (amount within 2%, payout within 1 hour, address reuse, pair rarity) can link most confidential trades at low volume. Offmap runs and publishes this study on its own traffic (5.10).
 5. **No lending market hides the level.** No market a user can borrow from today keeps the individual position and liquidation price off the public map.
 
 ## 2. Users
@@ -22,12 +22,12 @@ Every loan and leveraged position on a public chain is a target.
 2. **Funds, treasuries and known wallets** whose every move is watched and copied.
 3. **Anyone who wants a loan without linking the wallet they deposit from to the wallet they receive in.**
 
-## 3. What Blindside is
+## 3. What Offmap is
 
 Borrowing through a few shared, capped positions on a deep existing lending market, run by an agent inside sealed hardware, with every user's loan kept private inside them, and an exit that works without the agent.
 
-1. **Cohorts, not one pool.** Blindside runs a few pooled positions (cohorts) on Morpho Blue on Base, each through its own NEAR chain signatures address. A cohort is defined by collateral asset and has a hard size cap. The market and every observer see a handful of borrowers, never an individual. A problem in one cohort cannot touch another.
-2. **Real liquidity from day one.** Loans are funded by Morpho's existing lenders. Blindside recruits no lenders.
+1. **Cohorts, not one pool.** Offmap runs a few pooled positions (cohorts) on Morpho Blue on Base, each through its own NEAR chain signatures address. A cohort is defined by collateral asset and has a hard size cap. The market and every observer see a handful of borrowers, never an individual. A problem in one cohort cannot touch another.
+2. **Real liquidity from day one.** Loans are funded by Morpho's existing lenders. Offmap recruits no lenders.
 3. **A private ledger.** Each user's collateral, debt, health and liquidation price live only inside the sealed hardware agent. The user sees their own position. Nobody else does.
 4. **Private liquidation.** If a user's loan gets unhealthy, the agent sells part of that user's collateral through a confidential NEAR Intents swap and repays that user's share. No public liquidation event is tied to anyone. Each cohort stays far from Morpho's own liquidation line.
 5. **Unlinkable money in and out.** Deposits and payouts move through confidential NEAR Intents balances, with round sizes, batch windows and random delays.
@@ -52,7 +52,7 @@ The visitor brings their own funds and gets a real loan in a few minutes.
 
 Everything below ships. Nothing is held for later.
 
-### 5.1 NEAR contract `blindside.near`
+### 5.1 NEAR contract `offmap.near`
 
 1. Registry of the accepted agent code hash and the agent's attested key (the Shade Agent pattern).
 2. Only a registered, attested agent can request chain signatures for the cohort Base accounts.
@@ -64,7 +64,7 @@ Everything below ships. Nothing is held for later.
 
 ### 5.2 Sealed hardware agent
 
-1. Runs in Intel TDX through the Shade Agent framework. Remote attestation is verified by `blindside.near` on registration.
+1. Runs in Intel TDX through the Shade Agent framework. Remote attestation is verified by `offmap.near` on registration.
 2. Holds the private ledger, encrypted to a key only an attested instance can derive.
 3. Derives and controls each cohort's Base account through chain signatures.
 4. Reads prices from at least three independent sources and uses the median. Refuses to act on a stale or split price.
@@ -112,7 +112,7 @@ Every loss is published as an event with the amount and cohort. It never names t
 ### 5.8 User notes and recovery
 
 1. After every change, the user gets a note signed by the agent: cohort, collateral, debt, nonce, salt, Merkle root and the user's proof.
-2. The user's app checks the proof against the root on `blindside.near` and shows a green tick or a red warning.
+2. The user's app checks the proof against the root on `offmap.near` and shows a green tick or a red warning.
 3. If the agent is gone and recovery mode starts, users present their latest notes. A new attested agent rebuilds the ledger, or unwinds the cohort and returns each user their share. Users can eject at any time.
 
 ### 5.9 Selective disclosure
@@ -121,7 +121,7 @@ A user can generate a signed statement of their own position for a chosen party 
 
 ### 5.10 Leak study and level attack (published, re-runnable)
 
-1. **Leak study:** four heuristics (amount within 2%, payout within 1 hour, address reuse, pair rarity) over Blindside's own deposits and payouts, from public chain data only. Shows trades, uniquely linked, correctly linked, mean anonymity set and linked fraction, with sample sizes.
+1. **Leak study:** four heuristics (amount within 2%, payout within 1 hour, address reuse, pair rarity) over Offmap's own deposits and payouts, from public chain data only. Shows trades, uniquely linked, correctly linked, mean anonymity set and linked fraction, with sample sizes.
 2. **Level attack:** given only public cohort data and batch deltas, try to estimate any single user's liquidation price; report the error.
 3. Runs on demand from the proof page and from one command in the repo.
 
@@ -133,7 +133,7 @@ A user can generate a signed statement of their own position for a chosen party 
 
 ## 6. NEAR technology and why it is the hero
 
-| NEAR piece | What it does in Blindside | Without it |
+| NEAR piece | What it does in Offmap | Without it |
 |---|---|---|
 | Confidential NEAR Intents | Private balances, private liquidation swaps, private payouts to 35+ chains | Every step is public and the product does not exist |
 | Chain signatures | A NEAR contract controls each cohort's Morpho account on Base and signs ejects, no bridge, no human key | A human or a multisig holds the account |
@@ -145,9 +145,9 @@ A user can generate a signed statement of their own position for a chosen party 
 
 ## 7. Positioning
 
-1. Private account systems hide who holds a loan; the position and its level stay public. Blindside hides the position and the level.
-2. Liquidation rescue tools act on positions that stay public. Blindside removes the public target.
-3. The strongest DeFi entries in this hackathon are live on mainnet with tests, CI and verified builds. That is the polish bar Blindside ships at.
+1. Private account systems hide who holds a loan; the position and its level stay public. Offmap hides the position and the level.
+2. Liquidation rescue tools act on positions that stay public. Offmap removes the public target.
+3. The strongest DeFi entries in this hackathon are live on mainnet with tests, CI and verified builds. That is the polish bar Offmap ships at.
 
 (Named rivals are tracked outside this document.)
 
@@ -157,7 +157,7 @@ Published guidance: technical implementation, design, impact, originality, susta
 
 1. **Technical implementation:** a keyless NEAR contract verifying hardware attestation and Merkle proofs; a sealed agent driving real Morpho positions on Base through chain signatures; confidential Intents in and out; batching and private liquidation; solvency statements, permissionless eject and recovery.
 2. **Design:** the hunter view against your view is the whole product on one screen. Plain words, live numbers, every claim one click from its proof.
-3. **Impact:** every borrower on a public chain is exposed today. Blindside gives them a loan on real liquidity without the target.
+3. **Impact:** every borrower on a public chain is exposed today. Offmap gives them a loan on real liquidity without the target.
 4. **Originality:** no lending market hides the individual level today. Pooled private positions, private liquidation, user verifiable solvency and eject are new together.
 5. **Sustainability:** revenue from day one, 1% a year over Morpho's rate on every loan, with no partners to sign.
 
@@ -166,8 +166,8 @@ Published guidance: technical implementation, design, impact, originality, susta
 | Claim | Proof |
 |---|---|
 | Loans are real, from Morpho | Cohort positions on the Base explorer, USDC arriving at the user's wallet |
-| The agent runs the published code | Attestation and accepted code hash on `blindside.near`, rebuild script |
-| Nobody holds a key | `blindside.near` access key list is empty; cohort accounts are chain signatures addresses |
+| The agent runs the published code | Attestation and accepted code hash on `offmap.near`, rebuild script |
+| Nobody holds a key | `offmap.near` access key list is empty; cohort accounts are chain signatures addresses |
 | Each cohort is solvent | Latest solvency statement on chain, checked by the contract |
 | My position is counted | My note's Merkle proof verifies against the on-chain root |
 | Positions are private | Hunter view shows only cohort positions; level attack error published |
@@ -177,7 +177,7 @@ Published guidance: technical implementation, design, impact, originality, susta
 
 Every number on the site is read live or links to its source. No staged states, no simulated success.
 
-## 10. What Blindside does not do, and the trust it asks for
+## 10. What Offmap does not do, and the trust it asks for
 
 1. **It trusts sealed hardware for privacy, not for custody of last resort.** Eject works without the agent.
 2. **Privacy depends on volume.** At hackathon volume the anonymity set is small; the leak study shows the real number.
@@ -189,7 +189,7 @@ Every number on the site is read live or links to its source. No staged states, 
 
 ## 11. Judge path (no TEE needed)
 
-1. One command reads `blindside.near`: access keys (empty), accepted code hash, latest solvency statements and roots.
+1. One command reads `offmap.near`: access keys (empty), accepted code hash, latest solvency statements and roots.
 2. One command reads the cohort positions on Base and checks they equal the statement totals within rounding.
 3. One command verifies a published sample note's Merkle proof against the on-chain root.
 4. One command runs the leak study and the level attack and prints the results.
@@ -223,7 +223,7 @@ Ticked only from the live app. Copied to `docs/SUBMISSION_CHECKLIST.md`.
 10. The leak study and level attack run from one command and from the proof page.
 11. Recovery: a second attested instance of the same code resumes from notes and the root.
 12. Repay from any chain returns collateral to any chain.
-13. `blindside.near` has no access keys and its source matches the repo build.
+13. `offmap.near` has no access keys and its source matches the repo build.
 
 ## 14. Unknowns to spike before building
 

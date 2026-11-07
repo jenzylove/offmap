@@ -1,4 +1,4 @@
-# Spike S3: eject in one transaction on Morpho Blue (Base)
+# Spike S4: eject in one transaction on Morpho Blue (Base)
 
 **Question.** Can one user's share of a pooled cohort position on Morpho Blue move into a position owned by the user's own wallet, atomically, without the cohort or the helper keeping access to the user's account?
 
