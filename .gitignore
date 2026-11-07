@@ -1,0 +1,22 @@
+# secrets and keys
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+**/near-credentials/
+**/*credentials*.json
+keys/
+# build output
+target/
+node_modules/
+dist/
+.next/
+out/
+*.wasm
+!res/*.wasm
+# local
+.DS_Store
+*.log
+.vercel/
+coverage/
