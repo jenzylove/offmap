@@ -25,7 +25,7 @@ Time box each to 90 minutes. Results go to `docs/spikes/<name>.md`.
 | S2 | The agent holds a confidential Intents balance, runs a confidential 1Click swap, and pays out to a chosen chain | mainnet | needs a spike |
 | S3 | Batch window and lot sizes that drop the linked fraction at low volume | offline sim, then mainnet sample | needs a spike |
 | S4 | Eject helper: Morpho flash loan plus dual authorization moves a share to the user's own position in one transaction | Base fork (forge), then Base mainnet | **pass on Base fork** (`docs/spikes/s4-eject.md`) |
-| S5 | Merkle proof check gas on NEAR for a padded tree of 256 leaves | NEAR sandbox | needs a spike |
+| S5 | Merkle proof check gas on NEAR for a padded tree | NEAR testnet | **pass: 2 Tgas at 1,024 leaves** (`docs/spikes/s5-merkle-gas.md`) |
 | S6 | One sourced case of a lending market liquidation level being hunted | web research | research |
 | S7 | Morpho Blue WETH/USDC and cbBTC/USDC on Base: liquidity, LLTV, oracle | Morpho API | known |
 | S8 | 1Click deposit, status, refund flow | docs | known |
@@ -45,7 +45,7 @@ Pure functions with unit tests, no network:
 5. Notes: signed, verifiable, enough to recover.
 6. Leak study and level attack over a list of public transfers.
 
-Check: `cargo test` and `npm test` green, including the acceptance tests 6, 7 and 9 as unit tests.
+Check: `cargo test` and `npm test` green, including the acceptance tests 6, 7 and 9 as unit tests. **Status: TypeScript core done, 55 tests green (commit 66fb734).**
 
 ## Phase 3. Contracts (Nov 10 to 11)
 
