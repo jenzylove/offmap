@@ -1,0 +1,47 @@
+{
+ "accountId": "864a509491f1c806e57e0c7ed3423737195cfb19783340576166654a8ab587b5",
+ "steps": [
+  {
+   "step": "shield 3 USDC into confidential balance",
+   "nearTx": "6fZ9NDcPXR5sstSPoxtKrcJudVyVEVa47mCm56UfQ1mm",
+   "deposit": "5e4f73f61a7c7a2de8a495e2ccd8eeaa7ccfb6ad4bb991b8de2ad840c20dae14"
+  },
+  {
+   "step": "read private balance (owner session only)",
+   "balances": {
+    "balances": [
+     {
+      "tokenId": "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+      "available": "3000000",
+      "source": "private"
+     }
+    ]
+   }
+  },
+  {
+   "step": "pay 1.5 USDC from private balance to fresh Base wallet",
+   "freshWallet": "0xb7E42a145B71bdCCf7Cc59413Dfa095d2bb3Dfab",
+   "intentHash": "7zsmgXHWBAbDYTwNhm6EEgmALMSviysh1jQ9zQEYWPWv",
+   "deposit": "80d5c072dae602d0ad3a1c6d71d26dc465fbaf2a6d92b9449673f7e19ba058b9",
+   "quotedOut": "1.495022",
+   "baseTx": [
+    {
+     "hash": "0x0a697f0f515ae6d8201a25bf2d3169679e4a711439e6e5666e2a167002176752",
+     "explorerUrl": ""
+    }
+   ]
+  },
+  {
+   "step": "private balance after payout",
+   "balances": {
+    "balances": [
+     {
+      "tokenId": "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1",
+      "available": "1500000",
+      "source": "private"
+     }
+    ]
+   }
+  }
+ ]
+}

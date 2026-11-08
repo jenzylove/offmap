@@ -1,1 +1,1 @@
-{"name":"spike-chainsig-morpho","private":true,"type":"module","dependencies":{"chainsig.js":"^1.1.16","near-api-js":"^5.1.1","viem":"^2.57.16"}}
+{"name":"spike-chainsig-morpho","private":true,"type":"module","dependencies":{"@defuse-protocol/intents-sdk":"^0.95.0","@defuse-protocol/one-click-sdk-typescript":"^0.1.26","bs58":"^6.0.0","chainsig.js":"^1.1.16","near-api-js":"^5.1.1","viem":"^2.57.16"}}

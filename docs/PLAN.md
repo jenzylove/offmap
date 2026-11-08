@@ -22,7 +22,7 @@ Time box each to 90 minutes. Results go to `docs/spikes/<name>.md`.
 | # | Question | Where | Status |
 |---|---|---|---|
 | S1 | Shade Agent in TDX registers on our NEAR contract, derives a Base address through chain signatures, and supplies, borrows and repays on Morpho Blue | mainnet NEAR + Base | **chain signatures + Morpho pass on mainnet** (`docs/spikes/s1-chainsig-morpho.md`); TDX registration still open |
-| S2 | The agent holds a confidential Intents balance, runs a confidential 1Click swap, and pays out to a chosen chain | mainnet | needs a spike |
+| S2 | The agent holds a confidential Intents balance, runs a confidential 1Click swap, and pays out to a chosen chain | mainnet | **pass** (`docs/spikes/s2-confidential-rail.md`) |
 | S3 | Batch window and lot sizes that drop the linked fraction at low volume | offline sim, then mainnet sample | needs a spike |
 | S4 | Eject helper: Morpho flash loan plus dual authorization moves a share to the user's own position in one transaction | Base fork (forge), then Base mainnet | **pass on Base fork** (`docs/spikes/s4-eject.md`) |
 | S5 | Merkle proof check gas on NEAR for a padded tree | NEAR testnet | **pass: 2 Tgas at 1,024 leaves** (`docs/spikes/s5-merkle-gas.md`) |
