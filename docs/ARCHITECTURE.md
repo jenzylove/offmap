@@ -9,9 +9,9 @@ user wallet (any chain)
 apps/agent  (TDX on Phala, Shade Agent)          apps/web (Next.js, Vercel)
    │  private ledger (@offmap/core)  ◄── HTTPS API ──►  borrow, your view, hunter view, proof, eject
    │  confidential Intents balance (owner session)
-   │  calls offmap.near: submit_statement, request_signature
+   │  calls offmapfi.near: submit_statement, request_signature
    ▼
-contracts/near  offmap.near  ──sign──►  v1.signer (MPC)  ──►  cohort address on Base
+contracts/near  offmapfi.near  ──sign──►  v1.signer (MPC)  ──►  cohort address on Base
    │  stores statements, verifies Merkle eject proofs,                │
    │  builds and signs eject txs                                        ▼
    ▼                                                        Morpho Blue (cbBTC/USDC, WETH/USDC)
@@ -22,11 +22,11 @@ contracts/base  EjectHelper (immutable)  ◄── eject tx ──────�
 
 | Thing | Value |
 |---|---|
-| Contract | `offmap.near` (mainnet). Dev: a testnet account |
+| Contract | `offmapfi.near` (mainnet). Dev: a testnet account |
 | MPC | `v1.signer` mainnet, `v1.signer-prod.testnet` testnet; domain 0 secp256k1; deposit 1 yocto |
-| Cohort Base address | derived from predecessor `offmap.near`, path `cohort:<cohort_id>` (e.g. `cohort:cbbtc-usdc`) |
+| Cohort Base address | derived from predecessor `offmapfi.near`, path `cohort:<cohort_id>` (e.g. `cohort:cbbtc-usdc`) |
 | Agent NEAR account | 64 hex implicit account generated inside the TEE (ephemeral) |
-| Confidential Intents balance owner | `offmap.near` itself. `register_agent` adds the attested agent's key to `intents.near` (`add_public_key`); expired or replaced agents are pruned; recovery mode removes all agent keys. Agents sign intents with `signer_id = offmap.near` |
+| Confidential Intents balance owner | `offmapfi.near` itself. `register_agent` adds the attested agent's key to `intents.near` (`add_public_key`); expired or replaced agents are pruned; recovery mode removes all agent keys. Agents sign intents with `signer_id = offmapfi.near` |
 | Morpho Blue | `0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb` on Base (8453) |
 | Cohort `cbbtc-usdc` | market `0x9103c3b4e834476c9a62ea009ba2c884ee42e94e6e314a26f04d312434191836`, collateral cbBTC `0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf` (8 dec) |
 | Cohort `weth-usdc` | market `0x8793cf302b8ffd655ab97bd1c695dbd967807e8367a65cb2f4edaf1380ba1bda`, collateral WETH `0x4200000000000000000000000000000000000006` (18 dec) |
@@ -39,7 +39,7 @@ contracts/base  EjectHelper (immutable)  ◄── eject tx ──────�
 
 `userId` = lowercase hex of `keccak256(owner auth string)`, where the owner auth string is `evm:<lowercase address>` or `near:<account id>`. The user's eject destination is the EVM address in their note.
 
-## Contract `offmap.near` (contracts/near)
+## Contract `offmapfi.near` (contracts/near)
 
 State: config (immutable after init), agent registry, per cohort latest `Statement`, eject queue, recovery timer.
 

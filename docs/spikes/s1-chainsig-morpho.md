@@ -20,4 +20,4 @@
 
 **Gotcha found.** `v1.signer` returns `recovery_id`; chainsig.js expects `v = recovery_id + 27`. Passing the raw id made the transaction recover to a different, empty address.
 
-**Verdict.** Pass for the chain signatures and Morpho half of S1. Still open in S1: the same calls requested by a contract (`offmap.near`) for an agent proven to run in TDX (Phala), instead of by a plain NEAR account.
+**Verdict.** Pass for the chain signatures and Morpho half of S1. Still open in S1: the same calls requested by a contract (`offmapfi.near`) for an agent proven to run in TDX (Phala), instead of by a plain NEAR account.

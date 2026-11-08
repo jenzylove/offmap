@@ -11,7 +11,7 @@ import { actionCreators } from "@near-js/transactions";
 import { COHORTS, USDC_BASE } from "../src/config.js";
 import { marketParams } from "../src/base.js";
 
-const CONTRACT = "offmap.near";
+const CONTRACT = "offmapfi.near";
 const HELPER = "0x262fe96b235be762dca8cc1937a542848e12f8b8";
 const dir = path.join(os.homedir(), ".near-credentials", "implicit");
 const cred = JSON.parse(fs.readFileSync(path.join(dir, fs.readdirSync(dir).find((f) => f.endsWith(".json"))!), "utf8"));
@@ -38,6 +38,22 @@ const wasm = fs.readFileSync("../../contracts/near/target/near/offmap.opt.wasm")
 console.log("wasm", wasm.length, "bytes; ppids", config.approved_ppids.length);
 
 if (process.argv.includes("--dry")) process.exit(0);
+if (process.argv.includes("--code-only")) {
+  const r = await contract.signAndSendTransaction({ receiverId: CONTRACT, actions: [actionCreators.deployContract(wasm)] });
+  console.log("code updated", r.transaction.hash, JSON.stringify(r.status).slice(0, 120));
+  process.exit(0);
+}
+if (process.argv.includes("--set-config")) {
+  const r = await contract.signAndSendTransaction({ receiverId: CONTRACT, actions: [actionCreators.functionCall("set_config", Buffer.from(JSON.stringify({ config })), 100_000_000_000_000n, 0n)] });
+  console.log("set_config", r.transaction.hash, JSON.stringify(r.status).slice(0, 160));
+  process.exit(0);
+}
+if (process.argv.includes("--recreate")) throw new Error("never delete a named account: snipers take it (see memory)");
+if (process.argv.includes("--recreate")) {
+  // Deleting returns the storage NEAR to the build account; the account is created again below.
+  const del = await contract.signAndSendTransaction({ receiverId: CONTRACT, actions: [actionCreators.deleteAccount(cred.implicit_account_id)] });
+  console.log("deleted", CONTRACT, del.transaction.hash);
+}
 const exists = await provider.query({ request_type: "view_account", finality: "final", account_id: CONTRACT }).then(() => true, () => false);
 if (!exists) {
   const r = await builder.callFunction({ contractId: "near", methodName: "create_account", args: { new_account_id: CONTRACT, new_public_key: kp.getPublicKey().toString() },

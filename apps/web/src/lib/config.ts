@@ -3,7 +3,7 @@ import type { Cohort } from "@offmap/core";
 const trim = (v: string | undefined) => (v ?? "").trim().replace(/\/+$/, "");
 
 export const AGENT_URL = trim(process.env.NEXT_PUBLIC_AGENT_URL);
-export const CONTRACT_ID = trim(process.env.NEXT_PUBLIC_CONTRACT_ID) || "offmap.near";
+export const CONTRACT_ID = trim(process.env.NEXT_PUBLIC_CONTRACT_ID) || "offmapfi.near";
 export const NEAR_RPC = trim(process.env.NEXT_PUBLIC_NEAR_RPC) || "https://rpc.mainnet.fastnear.com";
 export const BASE_RPC = trim(process.env.NEXT_PUBLIC_BASE_RPC) || "https://mainnet.base.org";
 

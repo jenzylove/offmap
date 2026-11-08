@@ -30,8 +30,11 @@ export function app(id: Identity, s: State) {
     return u;
   };
 
-  a.get("/health", (c) => c.json({ agent: id.accountId, intentsOwner: id.intentsSigner, tee: id.tee, contract: config.contractId || null,
+  a.get("/health", (c) => c.json({ agent: id.accountId, registration: id.registration, intentsOwner: id.intentsSigner, tee: id.tee, contract: config.contractId || null,
     cohorts: COHORTS.map((k) => ({ id: k.id, address: base.cohortAddress(id.mpcPredecessor, k.id) })), lastBatch: s.batches.at(-1) ?? null }));
+
+  // Anyone can fetch the hardware attestation and check it against the measurements offmap.near approves.
+  a.get("/attestation", async (c) => (id.attestation ? c.json(big(await id.attestation())) : c.json({ tee: false, note: "dev mode, no TEE attestation" })));
 
   a.post("/auth", async (c) => {
     const b = await c.req.json();

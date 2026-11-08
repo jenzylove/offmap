@@ -616,3 +616,19 @@ fn init_checks_market_id() {
     cfg.cohorts[0].lltv = U128(1);
     Contract::new(cfg);
 }
+
+
+#[test]
+#[should_panic(expected = "only the contract account itself")]
+fn set_config_refused_for_anyone_but_the_contract_account() {
+    let mut c = setup();
+    ctx(agent_id(), T0, NearToken::from_yoctonear(0));
+    c.set_config(config(true));
+}
+
+#[test]
+fn set_config_by_the_contract_account_itself() {
+    let mut c = setup();
+    ctx(deployer(), T0, NearToken::from_yoctonear(0));
+    c.set_config(config(true));
+}

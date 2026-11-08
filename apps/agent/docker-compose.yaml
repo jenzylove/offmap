@@ -1,6 +1,6 @@
 services:
   offmap-agent:
-    image: ghcr.io/jenzylove/offmap-agent@sha256:b198364c3cc916fbe5c0b8f361aa3487304f5a0736c093bb00eff80249fb3a9e
+    image: ghcr.io/jenzylove/offmap-agent@sha256:fb66f711d22d6e85a4c3a0cf173dfe9393f430c16b287de0c9ec35b86bcafdd1
     platform: linux/amd64
     restart: always
     ports:
@@ -10,7 +10,7 @@ services:
       - offmap-data:/app/apps/agent/data
     environment:
       NEAR_NETWORK: mainnet
-      OFFMAP_CONTRACT: offmap.near
+      OFFMAP_CONTRACT: offmapfi.near
       MPC_CONTRACT: v1.signer
       NEAR_RPC: https://rpc.mainnet.fastnear.com
       BASE_RPC: https://mainnet.base.org

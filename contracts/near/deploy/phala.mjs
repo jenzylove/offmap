@@ -8,7 +8,7 @@ const apiKey = fs.readFileSync(os.homedir() + "/.offmap-secrets/phala.env", "utf
 const compose = "../../../apps/agent/docker-compose.yaml";
 const allowed = extractAllowedEnvs(compose);
 console.log("allowed envs", allowed);
-const r = await deployToPhala({ appName: "offmap-agent", apiKey, composePath: compose, envFilePath: os.homedir() + "/.offmap-secrets/phala-cvm.env",
-  allowedEnvKeys: allowed, dstackVersion: "0.5.8", instanceType: "tdx.small", publicLogs: false, publicSysinfo: false });
+const r = await deployToPhala({ appName: process.env.APP_NAME || "offmap-agent", apiKey, composePath: compose, envFilePath: os.homedir() + "/.offmap-secrets/phala-cvm.env",
+  allowedEnvKeys: allowed, dstackVersion: process.env.DSTACK || "0.5.7", instanceType: "tdx.small", publicLogs: false, publicSysinfo: false });
 fs.writeFileSync("phala-deploy.json", JSON.stringify(r, null, 2));
 console.log(JSON.stringify(r));

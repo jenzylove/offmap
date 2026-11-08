@@ -31,6 +31,10 @@ export interface Identity {
   tee: boolean;
   /** TEE only: wait until the agent account holds NEAR, then register with offmap.near using a real attestation. */
   register?: () => Promise<void>;
+  /** TEE only: the dstack attestation (quote, tcb info, event log) bound to this agent account. */
+  attestation?: () => Promise<unknown>;
+  /** Registration state, shown on /health so a failure is never invisible. */
+  registration: { status: "not_needed" | "waiting_for_funds" | "registering" | "registered" | "failed"; error?: string; at?: number };
 }
 
 const provider = () => new JsonRpcProvider({ url: config.nearRpc });
@@ -67,12 +71,13 @@ function devIdentity(): Identity {
     viewContract: (method, args) => provider().callFunction(contract, method, args as Record<string, unknown>),
     mpcPredecessor: contract || accountId,
     tee: false,
+    registration: { status: "not_needed" },
   };
 }
 
 async function teeIdentity(): Promise<Identity> {
   if (!config.contractId) throw new Error("TEE mode needs OFFMAP_CONTRACT");
-  const client = await ShadeClient.create({ networkId: config.network, agentContractId: config.contractId });
+  const client = await ShadeClient.create({ networkId: config.network, agentContractId: config.contractId, rpc: provider() as any });
   const accountId = client.accountId();
   const keys = await client.getPrivateKeys({ acknowledgeRisk: true });
   const kp = KeyPair.fromString(keys[0] as KeyPairString);
@@ -87,15 +92,30 @@ async function teeIdentity(): Promise<Identity> {
     viewContract: (method, args) => client.view({ methodName: method, args: args as Record<string, unknown> }),
     mpcPredecessor: config.contractId,
     tee: true,
-    register: async () => {
-      while ((await client.balance()) < 0.05) {
-        console.log(`waiting for NEAR at agent account ${accountId}`);
-        await new Promise((r) => setTimeout(r, 30_000));
+    attestation: () => client.getAttestation(),
+    registration: { status: "waiting_for_funds" },
+    register: async function (this: Identity) {
+      const reg = this.registration;
+      // Retry forever with backoff; every failure is recorded and served on /health.
+      for (let attempt = 0; ; attempt++) {
+        try {
+          if ((await client.balance()) < 0.05) {
+            reg.status = "waiting_for_funds"; reg.at = Date.now();
+            await new Promise((r) => setTimeout(r, 30_000));
+            continue;
+          }
+          reg.status = "registering"; reg.at = Date.now();
+          await client.register();
+          reg.status = "registered"; reg.error = undefined; reg.at = Date.now();
+          console.log("registered with", config.contractId);
+          setInterval(() => client.register().catch((e) => { reg.error = `re-register: ${String(e?.message ?? e)}`; }), 6 * 24 * 3600e3);
+          return;
+        } catch (e: any) {
+          reg.status = "failed"; reg.error = String(e?.message ?? e).slice(0, 600); reg.at = Date.now();
+          console.error("register attempt", attempt, reg.error);
+          await new Promise((r) => setTimeout(r, Math.min(300_000, 15_000 * (attempt + 1))));
+        }
       }
-      await client.register();
-      console.log("registered with", config.contractId);
-      // Attestations expire; re-register every 6 days.
-      setInterval(() => client.register().catch((e) => console.error("re-register", e)), 6 * 24 * 3600e3);
     },
   };
 }

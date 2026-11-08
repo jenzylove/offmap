@@ -57,7 +57,7 @@ export async function view<T>(method: string, args: Record<string, unknown> = {}
 
 import type { ContractConfigWire, StatementWire, StoredStatementWire } from "./eject";
 
-/** Statement as stored by offmap.near (contracts/near/src/types.rs Statement). */
+/** Statement as stored by offmapfi.near (contracts/near/src/types.rs Statement). */
 export type ChainStatement = StatementWire;
 
 /** The contract's `statement(cohort_id)` view returns { statement, accepted_at_ms, agent }. */

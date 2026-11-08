@@ -1,0 +1,14 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { Account } from "@near-js/accounts";
+import { JsonRpcProvider } from "@near-js/providers";
+import { KeyPairSigner } from "@near-js/signers";
+import { KeyPair, type KeyPairString } from "@near-js/crypto";
+const name = process.argv[2]!;
+const dir = path.join(os.homedir(), ".near-credentials", "implicit");
+const cred = JSON.parse(fs.readFileSync(path.join(dir, fs.readdirSync(dir).find((f) => f.endsWith(".json"))!), "utf8"));
+const kp = KeyPair.fromString(cred.private_key as KeyPairString);
+const builder = new Account(cred.implicit_account_id, new JsonRpcProvider({ url: "https://rpc.mainnet.fastnear.com" }), new KeyPairSigner(kp));
+const r = await builder.callFunction({ contractId: "near", methodName: "create_account", args: { new_account_id: name, new_public_key: kp.getPublicKey().toString() }, deposit: 8_750_000_000_000_000_000_000_000n, gas: 100_000_000_000_000n });
+console.log("created", name, r);

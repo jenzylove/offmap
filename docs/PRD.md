@@ -52,7 +52,7 @@ The visitor brings their own funds and gets a real loan in a few minutes.
 
 Everything below ships. Nothing is held for later.
 
-### 5.1 NEAR contract `offmap.near`
+### 5.1 NEAR contract `offmapfi.near`
 
 1. Registry of the accepted agent code hash and the agent's attested key (the Shade Agent pattern).
 2. Only a registered, attested agent can request chain signatures for the cohort Base accounts.
@@ -64,7 +64,7 @@ Everything below ships. Nothing is held for later.
 
 ### 5.2 Sealed hardware agent
 
-1. Runs in Intel TDX through the Shade Agent framework. Remote attestation is verified by `offmap.near` on registration.
+1. Runs in Intel TDX through the Shade Agent framework. Remote attestation is verified by `offmapfi.near` on registration.
 2. Holds the private ledger, encrypted to a key only an attested instance can derive.
 3. Derives and controls each cohort's Base account through chain signatures.
 4. Reads prices from at least three independent sources and uses the median. Refuses to act on a stale or split price.
@@ -112,7 +112,7 @@ Every loss is published as an event with the amount and cohort. It never names t
 ### 5.8 User notes and recovery
 
 1. After every change, the user gets a note signed by the agent: cohort, collateral, debt, nonce, salt, Merkle root and the user's proof.
-2. The user's app checks the proof against the root on `offmap.near` and shows a green tick or a red warning.
+2. The user's app checks the proof against the root on `offmapfi.near` and shows a green tick or a red warning.
 3. If the agent is gone and recovery mode starts, users present their latest notes. A new attested agent rebuilds the ledger, or unwinds the cohort and returns each user their share. Users can eject at any time.
 
 ### 5.9 Selective disclosure
@@ -166,8 +166,8 @@ Published guidance: technical implementation, design, impact, originality, susta
 | Claim | Proof |
 |---|---|
 | Loans are real, from Morpho | Cohort positions on the Base explorer, USDC arriving at the user's wallet |
-| The agent runs the published code | Attestation and accepted code hash on `offmap.near`, rebuild script |
-| Nobody holds a key | `offmap.near` access key list is empty; cohort accounts are chain signatures addresses |
+| The agent runs the published code | Attestation and accepted code hash on `offmapfi.near`, rebuild script |
+| Nobody holds a key | `offmapfi.near` access key list is empty; cohort accounts are chain signatures addresses |
 | Each cohort is solvent | Latest solvency statement on chain, checked by the contract |
 | My position is counted | My note's Merkle proof verifies against the on-chain root |
 | Positions are private | Hunter view shows only cohort positions; level attack error published |
@@ -189,7 +189,7 @@ Every number on the site is read live or links to its source. No staged states, 
 
 ## 11. Judge path (no TEE needed)
 
-1. One command reads `offmap.near`: access keys (empty), accepted code hash, latest solvency statements and roots.
+1. One command reads `offmapfi.near`: access keys (empty), accepted code hash, latest solvency statements and roots.
 2. One command reads the cohort positions on Base and checks they equal the statement totals within rounding.
 3. One command verifies a published sample note's Merkle proof against the on-chain root.
 4. One command runs the leak study and the level attack and prints the results.
@@ -223,7 +223,7 @@ Ticked only from the live app. Copied to `docs/SUBMISSION_CHECKLIST.md`.
 10. The leak study and level attack run from one command and from the proof page.
 11. Recovery: a second attested instance of the same code resumes from notes and the root.
 12. Repay from any chain returns collateral to any chain.
-13. `offmap.near` has no access keys and its source matches the repo build.
+13. `offmapfi.near` has no access keys and its source matches the repo build.
 
 ## 14. Unknowns to spike before building
 

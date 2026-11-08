@@ -14,13 +14,16 @@ if (id.tee) {
   if (!config.stateKey) (config as any).stateKey = await hex("offmap/state-key");
   if (!config.sessionSecret) (config as any).sessionSecret = await hex("offmap/session-secret");
 }
-if (id.register) await id.register();
 const state = load();
 console.log(`offmap agent ${id.accountId} (tee=${id.tee}) intents owner ${id.intentsSigner} contract ${config.contractId || "none (dev)"}`);
 
 serve({ fetch: app(id, state).fetch, port: config.port });
 console.log(`api on :${config.port}, batch every ${config.batchSeconds}s`);
 
-const loop = () => tick(id, state).catch((e) => console.error("tick", e));
+// Serve first (health and attestation must be readable before the contract can approve this agent),
+// then register in the background; batches start only once registered.
+let ready = !id.register;
+if (id.register) id.register.call(id).then(() => { ready = true; });
+const loop = () => (ready ? tick(id, state).catch((e) => console.error("tick", e)) : undefined);
 setInterval(loop, config.batchSeconds * 1000);
 loop();

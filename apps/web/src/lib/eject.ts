@@ -1,5 +1,5 @@
 /**
- * Eject: argument building, transaction encoding and signed transaction assembly for offmap.near.
+ * Eject: argument building, transaction encoding and signed transaction assembly for offmapfi.near.
  * Shapes follow contracts/near/src/types.rs exactly. U128 / U64 travel as decimal strings.
  * Pure functions (no network), unit tested against contracts/near/tests/fixtures.json.
  */
@@ -314,7 +314,7 @@ function b64json<T>(b64: string): T | null {
 export function parseEjectOutcome(o: FinalOutcomeLike): EjectOutcome {
   const st = o.status;
   if (st && typeof st === "object" && "Failure" in st && st.Failure) {
-    throw new Error(`offmap.near refused the eject: ${failureText(st.Failure)}`);
+    throw new Error(`offmapfi.near refused the eject: ${failureText(st.Failure)}`);
   }
   if (st && typeof st === "object" && typeof st.SuccessValue === "string") {
     const v = b64json<EjectOutcome>(st.SuccessValue);

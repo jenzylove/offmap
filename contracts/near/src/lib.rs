@@ -133,6 +133,18 @@ impl Contract {
         true
     }
 
+    /// Replace the config (for example new TEE measurements after an agent image update).
+    /// Only the contract account's own key can call this; once that key is deleted, nobody can.
+    pub fn set_config(&mut self, config: Config) {
+        require!(env::predecessor_account_id() == env::current_account_id(), "only the contract account itself");
+        require!(!self.recovery, "recovery mode");
+        if !config.dev_mode {
+            require!(config.dev_agents.is_empty(), "dev_agents only in dev_mode");
+        }
+        emit("config_updated", json!({ "approved_measurements": config.approved_measurements.len(), "approved_ppids": config.approved_ppids.len() }));
+        self.config = config;
+    }
+
     /// Removes agents whose attestation expired, and their intents keys. Anyone can call.
     pub fn prune_agents(&mut self) -> u32 {
         self.prune_expired()

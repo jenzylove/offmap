@@ -57,7 +57,7 @@ export type ProofCheck =
   | { kind: "invalid"; leaf: Hex; root: Hex };
 
 /**
- * Checks the note's leaf against the root stored on offmap.near.
+ * Checks the note's leaf against the root stored on offmapfi.near.
  * With no on chain root yet, it can only say whether the proof is consistent with the note's own root.
  */
 export function checkNote(note: Note, chainRoot: string | null): ProofCheck {

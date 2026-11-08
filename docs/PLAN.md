@@ -8,7 +8,7 @@ Every phase ends with a check that proves it. Nothing in a later phase is built 
 
 Needed before any mainnet work:
 
-1. NEAR mainnet account for the deployer (`offmap.near` (free on mainnet; offmap.near was taken)), funded with about 15 NEAR (contract storage plus chain signature fees).
+1. NEAR mainnet account for the deployer (`offmapfi.near` (free on mainnet; offmapfi.near was taken)), funded with about 15 NEAR (contract storage plus chain signature fees).
 2. Base wallet with about $40 of ETH for gas and about $60 of WETH or cbBTC as test collateral.
 3. Phala Cloud account (Shade Agents run there in Intel TDX), with credits for one CVM for 3 weeks.
 4. NEAR AI / 1Click API key for Intents (JWT from the partner portal) for confidential swaps.
@@ -49,7 +49,7 @@ Check: `cargo test` and `npm test` green, including the acceptance tests 6, 7 an
 
 ## Phase 3. Contracts (Nov 10 to 11)
 
-1. `offmap.near`: agent registry with attestation check, solvency statements, signing guard (stale, cap, ceiling, code hash), eject queue, recovery mode. NEP 330 build. Keys removed after deploy.
+1. `offmapfi.near`: agent registry with attestation check, solvency statements, signing guard (stale, cap, ceiling, code hash), eject queue, recovery mode. NEP 330 build. Keys removed after deploy.
 2. Eject helper on Base: immutable, forge tests on a Base fork, then deployed and verified.
 
 Check: each refusal in acceptance test 5 is a real mainnet transaction with its error; access key list empty.
