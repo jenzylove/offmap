@@ -1,0 +1,247 @@
+{
+  "contract": "offmap-dev-153243.testnet",
+  "agent": "8c3b9d669877a9275f9d73c9960bf16c69abbbbb84f199ac9f72c25bbde87aac",
+  "funder": "offmap-fund-53656.testnet",
+  "mpc": "v1.signer-prod.testnet",
+  "recovery_delay_ms": 259200000,
+  "started_ms": 1794153756381,
+  "cohort_address": "0xB3fad03F0FB28603b48446FC256E11eBF780383b",
+  "eject_signer_recovered": "0xB3fad03F0FB28603b48446FC256E11eBF780383b",
+  "request_signature_result": {
+    "big_r": {
+      "affine_point": "030d2d393141119b945af6b87337e86eca7e231144f60c0d3b1fc35eaf748037e9"
+    },
+    "s": {
+      "scalar": "3f02520126c692174ab8f6279e827a1a300fea00932f69b5fecdcbcf56cf467b"
+    },
+    "recovery_id": 1
+  },
+  "eject_preview": {
+    "leaf_hash": "0xd2a30bb943df0357ec898e08c59fe58559acd1e68bd342d13b8a2e745dd08000",
+    "payload_hash": "0xe591758b653f5f9602796406c6ee7e190ca969f5c21cc380439dc55c9fc8131c",
+    "unsigned_tx": "0x02f9034f82210505830f424084773594008316e3609400000000000000000000000000000000000e1ec780b90324cffc3736000000000000000000000000833589fcd6edb6e08f4c7c32d4f71b54bda02913000000000000000000000000cbb7c0000ab88b473b1f5afd9ef808440eed33bf000000000000000000000000663becd10dae6c4a3dcd89f1d76c1174199639b900000000000000000000000046415998764c29ab2a25cbea6254146d50d226870000000000000000000000000000000000000000000000000bef55718ad60000000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb9226600000000000000000000000000000000000000000000000000000000002625a000000000000000000000000000000000000000000000000000022126b014100000000000000000000000000000000000000000000000000000000000241ed380000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb9226600000000000000000000000000000000000000000000000000000000000e1ec7000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000070dbd880000000000000000000000000000000000000000000000000000000000000001cf2018d2faf211ed768be053f71dc44092a1971bfb8dddc6387a56a19a01ea387185a2b125e8ad4bb3926759c8e39db9f087eaa6cac271d0570861f8a7cfd3414000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb9226600000000000000000000000000000000000000000000000000000000000e1ec7000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000070dbd880000000000000000000000000000000000000000000000000000000000000001ba5a74f6711f31c14d928673d9e518827ff1e03da42d02809aa5aa938f6c9b7d47ad9d3145987c3894ec43a10c740ec7ecb80995f640041acc206e327f4ffe98cc0"
+  },
+  "steps": [
+    {
+      "name": "fund agent 2 NEAR",
+      "signer": "offmap-fund-53656.testnet",
+      "tx": "A5LkGR2kW4N2Fv4gjPDgpQWgKAy7pz2e8JJY6FgkAB5",
+      "ok": true,
+      "value": null,
+      "receipt_failures": []
+    },
+    {
+      "name": "fund contract 3 NEAR",
+      "signer": "offmap-fund-53656.testnet",
+      "tx": "88ocrWKRhLnefunA8P516rAaiB3qUibvJhviQ5qZ5fM8",
+      "ok": true,
+      "value": null,
+      "receipt_failures": []
+    },
+    {
+      "name": "deploy + new(config)",
+      "signer": "offmap-dev-153243.testnet",
+      "tx": "68P8Ep8oeknuWjWGLTWdQ8uy7LVVrtNPPJ2qo1TjLyuC",
+      "ok": true,
+      "value": null,
+      "receipt_failures": []
+    },
+    {
+      "name": "register_agent before whitelist (refused)",
+      "signer": "8c3b9d669877a9275f9d73c9960bf16c69abbbbb84f199ac9f72c25bbde87aac",
+      "tx": "D4wpNQcq9Gwame6ebQJmm2wTKhSp8NX57dyy8CH9sfZk",
+      "ok": false,
+      "error": "{\"ActionError\":{\"index\":0,\"kind\":{\"FunctionCallError\":{\"ExecutionError\":\"Smart contract panicked: agent is not whitelisted for dev mode\"}}}}",
+      "receipt_failures": [
+        {
+          "executor": "offmap-dev-153243.testnet",
+          "error": "{\"ActionError\":{\"index\":0,\"kind\":{\"FunctionCallError\":{\"ExecutionError\":\"Smart contract panicked: agent is not whitelisted for dev mode\"}}}}"
+        }
+      ]
+    },
+    {
+      "name": "whitelist_agent_dev",
+      "signer": "offmap-dev-153243.testnet",
+      "tx": "CxfDRYWg5ZMpXaqJXioCwsrAwuS1rx4ynrdwbkSZBk4U",
+      "ok": true,
+      "value": null,
+      "receipt_failures": []
+    },
+    {
+      "name": "whitelist_agent_dev by a stranger (refused)",
+      "signer": "offmap-fund-53656.testnet",
+      "tx": "9VyadMT6qksG84cyV6AvMZBpf3ZT572XusYNdy3nfMSv",
+      "ok": false,
+      "error": "{\"ActionError\":{\"index\":0,\"kind\":{\"FunctionCallError\":{\"ExecutionError\":\"Smart contract panicked: only the deployer\"}}}}",
+      "receipt_failures": [
+        {
+          "executor": "offmap-dev-153243.testnet",
+          "error": "{\"ActionError\":{\"index\":0,\"kind\":{\"FunctionCallError\":{\"ExecutionError\":\"Smart contract panicked: only the deployer\"}}}}"
+        }
+      ]
+    },
+    {
+      "name": "register_agent (0.005 NEAR, adds intents key)",
+      "signer": "8c3b9d669877a9275f9d73c9960bf16c69abbbbb84f199ac9f72c25bbde87aac",
+      "tx": "GqVWoEbrvCCqcDtsS77egJKv9NdWKBw8ydfReWfBCE9T",
+      "ok": true,
+      "value": true,
+      "receipt_failures": [
+        {
+          "executor": "intents.near",
+          "error": "{\"ActionError\":{\"index\":0,\"kind\":{\"AccountDoesNotExist\":{\"account_id\":\"intents.near\"}}}}"
+        }
+      ]
+    },
+    {
+      "name": "submit_statement by unregistered account (refused)",
+      "signer": "offmap-fund-53656.testnet",
+      "tx": "5kvvv71rdKVeTReKu7pez4xz95wXEzUChjdRZ2opUryw",
+      "ok": false,
+      "error": "{\"ActionError\":{\"index\":0,\"kind\":{\"FunctionCallError\":{\"ExecutionError\":\"Smart contract panicked: agent not registered\"}}}}",
+      "receipt_failures": [
+        {
+          "executor": "offmap-dev-153243.testnet",
+          "error": "{\"ActionError\":{\"index\":0,\"kind\":{\"FunctionCallError\":{\"ExecutionError\":\"Smart contract panicked: agent not registered\"}}}}"
+        }
+      ]
+    },
+    {
+      "name": "submit_statement batch 1",
+      "signer": "8c3b9d669877a9275f9d73c9960bf16c69abbbbb84f199ac9f72c25bbde87aac",
+      "tx": "6eLZVPkMyTSTLTi3FNZ8GN3Ec8Qhj8fEbrTbKjSPp4c8",
+      "ok": true,
+      "value": null,
+      "receipt_failures": []
+    },
+    {
+      "name": "submit_statement batch 1 again (refused, non increasing)",
+      "signer": "8c3b9d669877a9275f9d73c9960bf16c69abbbbb84f199ac9f72c25bbde87aac",
+      "tx": "3BKqSLZ6CfSmCxyuQ5bo4E7s2kRHAJNnSBfdyMDZ1xH1",
+      "ok": false,
+      "error": "{\"ActionError\":{\"index\":0,\"kind\":{\"FunctionCallError\":{\"ExecutionError\":\"Smart contract panicked: batch_id must increase\"}}}}",
+      "receipt_failures": [
+        {
+          "executor": "offmap-dev-153243.testnet",
+          "error": "{\"ActionError\":{\"index\":0,\"kind\":{\"FunctionCallError\":{\"ExecutionError\":\"Smart contract panicked: batch_id must increase\"}}}}"
+        }
+      ]
+    },
+    {
+      "name": "submit_statement over ceiling (refused)",
+      "signer": "8c3b9d669877a9275f9d73c9960bf16c69abbbbb84f199ac9f72c25bbde87aac",
+      "tx": "HQShJC1y8j5jHP8m7ECx2Y7EhFuCugrtSU3yxyX3pHXB",
+      "ok": false,
+      "error": "{\"ActionError\":{\"index\":0,\"kind\":{\"FunctionCallError\":{\"ExecutionError\":\"Smart contract panicked: cohort ceiling exceeded\"}}}}",
+      "receipt_failures": [
+        {
+          "executor": "offmap-dev-153243.testnet",
+          "error": "{\"ActionError\":{\"index\":0,\"kind\":{\"FunctionCallError\":{\"ExecutionError\":\"Smart contract panicked: cohort ceiling exceeded\"}}}}"
+        }
+      ]
+    },
+    {
+      "name": "submit_statement stale (refused)",
+      "signer": "8c3b9d669877a9275f9d73c9960bf16c69abbbbb84f199ac9f72c25bbde87aac",
+      "tx": "97ZsRPQ1ato69vxStDH7WVQWfA1K34gWhnenFMVHGf3Y",
+      "ok": false,
+      "error": "{\"ActionError\":{\"index\":0,\"kind\":{\"FunctionCallError\":{\"ExecutionError\":\"Smart contract panicked: statement is stale\"}}}}",
+      "receipt_failures": [
+        {
+          "executor": "offmap-dev-153243.testnet",
+          "error": "{\"ActionError\":{\"index\":0,\"kind\":{\"FunctionCallError\":{\"ExecutionError\":\"Smart contract panicked: statement is stale\"}}}}"
+        }
+      ]
+    },
+    {
+      "name": "request_signature by unregistered account (refused)",
+      "signer": "offmap-fund-53656.testnet",
+      "tx": "G3W8Rb3CNnwBqcP38stgifd7KWKDYS5xurG2T9Fv4YZF",
+      "ok": false,
+      "error": "{\"ActionError\":{\"index\":0,\"kind\":{\"FunctionCallError\":{\"ExecutionError\":\"Smart contract panicked: agent not registered\"}}}}",
+      "receipt_failures": [
+        {
+          "executor": "offmap-dev-153243.testnet",
+          "error": "{\"ActionError\":{\"index\":0,\"kind\":{\"FunctionCallError\":{\"ExecutionError\":\"Smart contract panicked: agent not registered\"}}}}"
+        }
+      ]
+    },
+    {
+      "name": "request_signature (real MPC)",
+      "signer": "8c3b9d669877a9275f9d73c9960bf16c69abbbbb84f199ac9f72c25bbde87aac",
+      "tx": "9tRTCQDstZHnL7m23nWFGFv4Pikuk5RtD2c12HKEPbTc",
+      "ok": true,
+      "value": {
+        "big_r": {
+          "affine_point": "030d2d393141119b945af6b87337e86eca7e231144f60c0d3b1fc35eaf748037e9"
+        },
+        "s": {
+          "scalar": "3f02520126c692174ab8f6279e827a1a300fea00932f69b5fecdcbcf56cf467b"
+        },
+        "recovery_id": 1
+      },
+      "receipt_failures": []
+    },
+    {
+      "name": "eject with wrong proof (refused)",
+      "signer": "offmap-fund-53656.testnet",
+      "tx": "97sYTppk7jQqyZVAFp4GTVnwtJk541yXtnE5Jc1oTZio",
+      "ok": false,
+      "error": "{\"ActionError\":{\"index\":0,\"kind\":{\"FunctionCallError\":{\"ExecutionError\":\"Smart contract panicked: invalid Merkle proof\"}}}}",
+      "receipt_failures": [
+        {
+          "executor": "offmap-dev-153243.testnet",
+          "error": "{\"ActionError\":{\"index\":0,\"kind\":{\"FunctionCallError\":{\"ExecutionError\":\"Smart contract panicked: invalid Merkle proof\"}}}}"
+        }
+      ]
+    },
+    {
+      "name": "eject (real MPC signature)",
+      "signer": "offmap-fund-53656.testnet",
+      "tx": "HZ6AqSmEBBDGrEtCUc2uhpK5shgbkEHww7R6pAZM5Gud",
+      "ok": true,
+      "value": {
+        "leaf_hash": "0xd2a30bb943df0357ec898e08c59fe58559acd1e68bd342d13b8a2e745dd08000",
+        "payload_hash": "0xe591758b653f5f9602796406c6ee7e190ca969f5c21cc380439dc55c9fc8131c",
+        "unsigned_tx": "0x02f9034f82210505830f424084773594008316e3609400000000000000000000000000000000000e1ec780b90324cffc3736000000000000000000000000833589fcd6edb6e08f4c7c32d4f71b54bda02913000000000000000000000000cbb7c0000ab88b473b1f5afd9ef808440eed33bf000000000000000000000000663becd10dae6c4a3dcd89f1d76c1174199639b900000000000000000000000046415998764c29ab2a25cbea6254146d50d226870000000000000000000000000000000000000000000000000bef55718ad60000000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb9226600000000000000000000000000000000000000000000000000000000002625a000000000000000000000000000000000000000000000000000022126b014100000000000000000000000000000000000000000000000000000000000241ed380000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb9226600000000000000000000000000000000000000000000000000000000000e1ec7000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000070dbd880000000000000000000000000000000000000000000000000000000000000001cf2018d2faf211ed768be053f71dc44092a1971bfb8dddc6387a56a19a01ea387185a2b125e8ad4bb3926759c8e39db9f087eaa6cac271d0570861f8a7cfd3414000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb9226600000000000000000000000000000000000000000000000000000000000e1ec7000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000070dbd880000000000000000000000000000000000000000000000000000000000000001ba5a74f6711f31c14d928673d9e518827ff1e03da42d02809aa5aa938f6c9b7d47ad9d3145987c3894ec43a10c740ec7ecb80995f640041acc206e327f4ffe98cc0",
+        "signature": {
+          "big_r": {
+            "affine_point": "028cf20690e56f1a419e56c9aca95a8b98ef90ae36c35ff725cd0842561ca84703"
+          },
+          "s": {
+            "scalar": "745f7ef429dfdd662cdd3123fd2a69a4332fcc4c490e9a33e49b03d0e031133c"
+          },
+          "recovery_id": 0
+        },
+        "signed_tx": "0x02f9039282210505830f424084773594008316e3609400000000000000000000000000000000000e1ec780b90324cffc3736000000000000000000000000833589fcd6edb6e08f4c7c32d4f71b54bda02913000000000000000000000000cbb7c0000ab88b473b1f5afd9ef808440eed33bf000000000000000000000000663becd10dae6c4a3dcd89f1d76c1174199639b900000000000000000000000046415998764c29ab2a25cbea6254146d50d226870000000000000000000000000000000000000000000000000bef55718ad60000000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb9226600000000000000000000000000000000000000000000000000000000002625a000000000000000000000000000000000000000000000000000022126b014100000000000000000000000000000000000000000000000000000000000241ed380000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb9226600000000000000000000000000000000000000000000000000000000000e1ec7000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000070dbd880000000000000000000000000000000000000000000000000000000000000001cf2018d2faf211ed768be053f71dc44092a1971bfb8dddc6387a56a19a01ea387185a2b125e8ad4bb3926759c8e39db9f087eaa6cac271d0570861f8a7cfd3414000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb9226600000000000000000000000000000000000000000000000000000000000e1ec7000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000070dbd880000000000000000000000000000000000000000000000000000000000000001ba5a74f6711f31c14d928673d9e518827ff1e03da42d02809aa5aa938f6c9b7d47ad9d3145987c3894ec43a10c740ec7ecb80995f640041acc206e327f4ffe98cc080a08cf20690e56f1a419e56c9aca95a8b98ef90ae36c35ff725cd0842561ca84703a0745f7ef429dfdd662cdd3123fd2a69a4332fcc4c490e9a33e49b03d0e031133c"
+      },
+      "receipt_failures": []
+    },
+    {
+      "name": "eject same leaf again (refused)",
+      "signer": "offmap-fund-53656.testnet",
+      "tx": "GP8WmYanYV21EsGdUHnaE7zP6Ej7NPfLFkXmCpX1yqAx",
+      "ok": false,
+      "error": "{\"ActionError\":{\"index\":0,\"kind\":{\"FunctionCallError\":{\"ExecutionError\":\"Smart contract panicked: leaf already ejected\"}}}}",
+      "receipt_failures": [
+        {
+          "executor": "offmap-dev-153243.testnet",
+          "error": "{\"ActionError\":{\"index\":0,\"kind\":{\"FunctionCallError\":{\"ExecutionError\":\"Smart contract panicked: leaf already ejected\"}}}}"
+        }
+      ]
+    },
+    {
+      "name": "recover while agent active (refused)",
+      "signer": "offmap-fund-53656.testnet",
+      "tx": "4yByXSxdFtWt9Hjb1KENotVcP4c24JLN4XL4dcwmsjxT",
+      "ok": false,
+      "error": "{\"ActionError\":{\"index\":0,\"kind\":{\"FunctionCallError\":{\"ExecutionError\":\"Smart contract panicked: agent is still active\"}}}}",
+      "receipt_failures": [
+        {
+          "executor": "offmap-dev-153243.testnet",
+          "error": "{\"ActionError\":{\"index\":0,\"kind\":{\"FunctionCallError\":{\"ExecutionError\":\"Smart contract panicked: agent is still active\"}}}}"
+        }
+      ]
+    }
+  ]
+}

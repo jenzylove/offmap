@@ -58,8 +58,8 @@ Everything below ships. Nothing is held for later.
 2. Only a registered, attested agent can request chain signatures for the cohort Base accounts.
 3. Stores the latest solvency statement per cohort: total collateral, total debt, reserve, Merkle root, leaf count, timestamp, agent signature.
 4. Rejects any signing request if the last solvency statement is older than a set limit, fails its checks, or would push a cohort over its cap or LTV ceiling.
-5. **Eject:** permissionless. The user submits their latest note, the leaf salt, a Merkle proof against the latest accepted root, and a Morpho authorization signed by their own Base wallet. The contract signs, through chain signatures, one call to the eject helper on Base (5.3.4). Ejects are **queued in order, never refused**: a queue keeps each step inside the cohort ceiling, and every queued eject completes.
-6. Recovery mode: if no valid agent checks in for a set time, any new agent running the same published code hash can register and resume from the ledger and user notes. Eject keeps working throughout.
+5. **Eject:** permissionless. The user submits their latest note, the leaf salt, a Merkle proof against the latest accepted root, and a Morpho authorization signed by their own Base wallet. The contract signs, through chain signatures, one call to the eject helper on Base (5.3.4). Each eject is signed immediately and can be done once per leaf; the cohort ceiling (50%) sits far below Morpho's liquidation line (86%), so ejects cannot push a cohort into danger.
+6. Recovery mode: if no statement arrives for a set time, anyone can switch the contract to recovery. It is permanent: signing and agent registration close, every agent key is removed from intents.near, and only eject stays open, so every user exits with their latest note.
 7. Full access keys removed after deploy. Source verified, reproducible build (NEP 330).
 
 ### 5.2 Sealed hardware agent
