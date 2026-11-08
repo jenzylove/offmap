@@ -1,0 +1,10 @@
+import { pathToFileURL } from "node:url";
+import fs from "node:fs";
+const R = "C:/Users/LENOVO/AppData/Roaming/npm/node_modules/@neardefi/shade-agent-cli/dist/src/utils";
+const m = await import(pathToFileURL(R + "/measurements.js").href);
+const p = await import(pathToFileURL(R + "/ppids.js").href);
+const cfg = { dstack: "0.5.8", instance: "tdx.small", publicLogs: false, publicSysinfo: false };
+const measurements = m.getMeasurements(true, "../../../apps/agent/docker-compose.yaml", cfg.dstack, cfg.instance, { publicLogs: cfg.publicLogs, publicSysinfo: cfg.publicSysinfo });
+const ppids = await p.getPpids(true);
+fs.writeFileSync("measurements.json", JSON.stringify({ cfg, measurements, ppids }, null, 2));
+console.log(JSON.stringify(measurements, null, 1).slice(0, 900)); console.log("ppids", ppids.length);

@@ -1,0 +1,77 @@
+{
+  "mpc_contract_id": "v1.signer",
+  "intents_contract": "intents.near",
+  "cohorts": [
+    {
+      "id": "cbbtc-usdc",
+      "market_id": "0x9103c3b4e834476c9a62ea009ba2c884ee42e94e6e314a26f04d312434191836",
+      "loan_token": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "collateral_token": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+      "oracle": "0x663BECd10daE6C4A3Dcd89F1d76c1174199639B9",
+      "irm": "0x46415998764C29aB2a25CbeA6254146D50D22687",
+      "lltv": "860000000000000000",
+      "base_chain_id": 8453,
+      "eject_helper": "0x262fe96b235be762dca8cc1937a542848e12f8b8",
+      "size_cap_loan": "5000000000",
+      "ceiling_bps": 5000
+    },
+    {
+      "id": "weth-usdc",
+      "market_id": "0x8793cf302b8ffd655ab97bd1c695dbd967807e8367a65cb2f4edaf1380ba1bda",
+      "loan_token": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "collateral_token": "0x4200000000000000000000000000000000000006",
+      "oracle": "0xFEa2D58cEfCb9fcb597723c6bAE66fFE4193aFE4",
+      "irm": "0x46415998764C29aB2a25CbeA6254146D50D22687",
+      "lltv": "860000000000000000",
+      "base_chain_id": 8453,
+      "eject_helper": "0x262fe96b235be762dca8cc1937a542848e12f8b8",
+      "size_cap_loan": "5000000000",
+      "ceiling_bps": 5000
+    }
+  ],
+  "approved_measurements": [
+    {
+      "rtmrs": {
+        "mrtd": "f06dfda6dce1cf904d4e2bab1dc370634cf95cefa2ceb2de2eee127c9382698090d7a4a13e14c536ec6c9c3c8fa87077",
+        "rtmr0": "68102e7b524af310f7b7d426ce75481e36c40f5d513a9009c046e9d37e31551f0134d954b496a3357fd61d03f07ffe96",
+        "rtmr1": "b598fde9491427341bc4683b75d10d3e36770af3a36a6954d8b6b7b22aa66358f13e1f172e51b7d6e6710d99a8d8532f",
+        "rtmr2": "9284cde236231d5ddace01104a440fd504df5182a2ad1ac3d2138b80c6a7864bd2c30f69041d8264217f3d24541580cf"
+      },
+      "key_provider_event_digest": "83368b43a0fc6f824f5a9220592df85fd30e2d405ecbd253a5c6354af63e6c9b41aec557c38a38e348ab87f9ac8fc68c",
+      "app_compose_hash_payload": "f1057e961adf623094369c23fe1146f0cb41e1a2606c16bb79ee0a391e523f6f"
+    }
+  ],
+  "approved_ppids": [
+    "25d230545a3e572bb25a69240d2319d2",
+    "3235086ca6743dfc60122d9662c6adaf",
+    "330defc989651469feae69a4a2fc2deb",
+    "3e306e133b7fdaa7bb79f67634cb520c",
+    "4065414cf7057d456a6ea7e01ec89f3a",
+    "4feaf7607bbb8699de5df347974ba4f5",
+    "58813387e6767e03cc2ed191aed34df9",
+    "5ab0c7d7d087758efa30a4b802dcfce2",
+    "62d54040cb9dfc08bb13006fa75ece56",
+    "6d29fd8d39de97bd27127c2747d41f79",
+    "75a2e7811a06c71a2430313cf6cd20fc",
+    "789e24484ea860fd2658896b8a535721",
+    "789e53db7374a8d22cb8b326aa254f23",
+    "897d3eb76ea887b783f9ad3d0771034b",
+    "a900c5d1de0b847f88ce7f32a69ddb5b",
+    "adee94b34274339c33b6f9a43a89ed2c",
+    "d5a036543e001ebe821a231306bece64",
+    "dc1e11aa6a4e37981776d7628eb3c0ed",
+    "de3c592b079106991b91654de5387395",
+    "e4ffa50fecdb05482bc4876586f77dd3",
+    "eafec44909bde673eae8ca96caf17c9d",
+    "f37d9549776d97f732b306ca10222e35",
+    "fbfc1e852c2c0d462212efe4ce34d8c4"
+  ],
+  "attestation_expiry_ms": "604800000",
+  "statement_max_age_ms": "1800000",
+  "recovery_delay_ms": "259200000",
+  "eject_min_gas_limit": "300000",
+  "eject_max_gas_limit": "3000000",
+  "eject_max_fee_per_gas": "50000000000",
+  "dev_mode": false,
+  "dev_agents": []
+}
