@@ -1,0 +1,1 @@
+{"name":"spike-chainsig-morpho","private":true,"type":"module","dependencies":{"chainsig.js":"^1.1.16","near-api-js":"^5.1.1","viem":"^2.57.16"}}
