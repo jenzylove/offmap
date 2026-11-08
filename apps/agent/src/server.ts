@@ -98,7 +98,9 @@ export function app(id: Identity, s: State) {
   });
 
   // What anyone can see. No per user data.
+  let cohortCache: { at: number; body: unknown } | undefined;
   a.get("/public/cohorts", async (c) => {
+    if (cohortCache && Date.now() - cohortCache.at < 30_000) return c.json(cohortCache.body as any);
     const out = [];
     for (const k of COHORTS) {
       const addr = base.cohortAddress(id.mpcPredecessor, k.id);
@@ -108,7 +110,8 @@ export function app(id: Identity, s: State) {
       out.push({ cohort: k.id, address: addr, market: k.marketId, morpho: onchain, ledgerTotals: { collateral: t.collateral, debt: t.debt, reserve: s.ledgers[k.id]!.reserve },
         collateralValue: collateralValue(onchain.collateral, price, k), lastBatch: s.batches.filter((b) => b.cohortId === k.id).at(-1) ?? null });
     }
-    return c.json(big({ contract: config.contractId || null, cohorts: out }));
+    cohortCache = { at: Date.now(), body: big({ contract: config.contractId || null, cohorts: out }) };
+    return c.json(cohortCache.body as any);
   });
 
   a.get("/public/leak", (c) => {

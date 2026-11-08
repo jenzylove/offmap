@@ -30,6 +30,7 @@ contracts/base  EjectHelper (immutable)  ◄── eject tx ──────�
 | Morpho Blue | `0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb` on Base (8453) |
 | Cohort `cbbtc-usdc` | market `0x9103c3b4e834476c9a62ea009ba2c884ee42e94e6e314a26f04d312434191836`, collateral cbBTC `0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf` (8 dec) |
 | Cohort `weth-usdc` | market `0x8793cf302b8ffd655ab97bd1c695dbd967807e8367a65cb2f4edaf1380ba1bda`, collateral WETH `0x4200000000000000000000000000000000000006` (18 dec) |
+| EjectHelper (Base mainnet) | `0x262fe96b235be762dca8cc1937a542848e12f8b8`, deployed by the MPC controlled address `0xf0Ad…6004` in [0x0a60bd…](https://basescan.org/tx/0x0a60bd60acdda6bef6b7f56066b7fa28bc4f04b21e8cce5ece71dfd7111074f1), source verified on Sourcify |
 | Loan token | USDC on Base `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` (6 dec) |
 
 ## Merkle leaf (identical in TypeScript and Rust)

@@ -145,10 +145,11 @@ export async function runCohort(id: Identity, s: State, c: CohortConfig) {
   let statementTx: string | undefined;
   if (config.contractId) {
     const t = totals(res.ledger);
+    const onchain = await base.position(c, addr);
     const r: any = await id.callContract("submit_statement", { stmt: {
-      cohort_id: c.id, batch_id: Number(batchId), total_collateral: t.collateral.toString(), total_debt: t.debt.toString(),
-      collateral_value_loan: collateralValue(t.collateral, price, c).toString(), reserve: res.ledger.reserve.toString(),
-      merkle_root: stmt.merkleRoot, leaf_count: stmt.leafCount, timestamp_ms: stmt.timestamp } });
+      cohort_id: c.id, batch_id: batchId, total_collateral: t.collateral.toString(), total_debt: t.debt.toString(),
+      reserve: res.ledger.reserve.toString(), collateral_value_loan: collateralValue(t.collateral, price, c).toString(),
+      borrow_shares: onchain.borrowShares.toString(), merkle_root: stmt.merkleRoot, leaf_count: stmt.leafCount, timestamp_ms: String(stmt.timestamp) } });
     statementTx = r?.transaction?.hash;
   }
   for (const p of res.ledger.positions.values()) s.notes[`${c.id}:${p.userId}`] = createNote(p, cm, batchId);
