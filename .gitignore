@@ -4,3 +4,4 @@ node_modules
 contracts/base/lib/
 contracts/base/cache/
 contracts/base/out/
+apps/agent/data/

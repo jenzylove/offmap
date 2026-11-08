@@ -1,0 +1,32 @@
+{
+  "name": "@offmap/agent",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/main.ts",
+    "start": "node --import tsx src/main.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.0",
+    "@near-js/accounts": "^2.0.0",
+    "@near-js/crypto": "^2.0.0",
+    "@near-js/providers": "^2.0.0",
+    "@near-js/signers": "^2.0.0",
+    "@near-js/transactions": "^2.0.0",
+    "@neardefi/shade-agent-js": "*",
+    "@noble/curves": "^1.9.7",
+    "@noble/hashes": "^1.8.0",
+    "@offmap/core": "workspace:*",
+    "bs58": "^6.0.0",
+    "hono": "^4.6.0",
+    "tsx": "^4.19.0",
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.0.0"
+  }
+}
