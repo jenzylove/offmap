@@ -1,0 +1,20 @@
+services:
+  offmap-agent:
+    image: ghcr.io/jenzylove/offmap-agent@sha256:b198364c3cc916fbe5c0b8f361aa3487304f5a0736c093bb00eff80249fb3a9e
+    platform: linux/amd64
+    restart: always
+    ports:
+      - "8787:8787"
+    volumes:
+      - /var/run/dstack.sock:/var/run/dstack.sock
+      - offmap-data:/app/apps/agent/data
+    environment:
+      NEAR_NETWORK: mainnet
+      OFFMAP_CONTRACT: offmap.near
+      MPC_CONTRACT: v1.signer
+      NEAR_RPC: https://rpc.mainnet.fastnear.com
+      BASE_RPC: https://mainnet.base.org
+      BATCH_SECONDS: "90"
+      ONECLICK_JWT: ${ONECLICK_JWT}
+volumes:
+  offmap-data:

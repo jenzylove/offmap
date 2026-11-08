@@ -29,6 +29,8 @@ export interface Identity {
   /** NEAR account that the MPC derives cohort addresses from. */
   mpcPredecessor: string;
   tee: boolean;
+  /** TEE only: wait until the agent account holds NEAR, then register with offmap.near using a real attestation. */
+  register?: () => Promise<void>;
 }
 
 const provider = () => new JsonRpcProvider({ url: config.nearRpc });
@@ -85,6 +87,16 @@ async function teeIdentity(): Promise<Identity> {
     viewContract: (method, args) => client.view({ methodName: method, args: args as Record<string, unknown> }),
     mpcPredecessor: config.contractId,
     tee: true,
+    register: async () => {
+      while ((await client.balance()) < 0.05) {
+        console.log(`waiting for NEAR at agent account ${accountId}`);
+        await new Promise((r) => setTimeout(r, 30_000));
+      }
+      await client.register();
+      console.log("registered with", config.contractId);
+      // Attestations expire; re-register every 6 days.
+      setInterval(() => client.register().catch((e) => console.error("re-register", e)), 6 * 24 * 3600e3);
+    },
   };
 }
 

@@ -6,6 +6,15 @@ import { tick } from "./engine.js";
 import { app } from "./server.js";
 
 const id = await loadIdentity();
+if (id.tee) {
+  // Inside the TEE, secrets come from dstack's key service, bound to this exact app: only this code can read the ledger.
+  const { DstackClient } = await import("@phala/dstack-sdk");
+  const ds = new DstackClient();
+  const hex = async (p: string) => Buffer.from((await ds.getKey(p, "offmap")).key).toString("hex").slice(0, 64);
+  if (!config.stateKey) (config as any).stateKey = await hex("offmap/state-key");
+  if (!config.sessionSecret) (config as any).sessionSecret = await hex("offmap/session-secret");
+}
+if (id.register) await id.register();
 const state = load();
 console.log(`offmap agent ${id.accountId} (tee=${id.tee}) intents owner ${id.intentsSigner} contract ${config.contractId || "none (dev)"}`);
 

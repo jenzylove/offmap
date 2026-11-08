@@ -19,6 +19,7 @@
     "@noble/curves": "^1.9.7",
     "@noble/hashes": "^1.8.0",
     "@offmap/core": "workspace:*",
+    "@phala/dstack-sdk": "^0.5.8",
     "bs58": "^6.0.0",
     "hono": "^4.6.0",
     "tsx": "^4.19.0",
