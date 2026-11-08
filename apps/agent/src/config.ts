@@ -60,6 +60,8 @@ export const config = {
   /** offmap.near in production. In dev without the contract, empty: the agent signs directly as its own account. */
   contractId: env("OFFMAP_CONTRACT", ""),
   nearRpc: env("NEAR_RPC", "https://rpc.mainnet.fastnear.com"),
+  /** Fallbacks used in order when the primary NEAR RPC rate limits a datacenter IP. */
+  nearRpcFallbacks: ["https://free.rpc.fastnear.com", "https://near.drpc.org"],
   baseRpc: env("BASE_RPC", "https://mainnet.base.org"),
   mpcContract: env("MPC_CONTRACT", "v1.signer"),
   oneClickJwt: env("ONECLICK_JWT", ""),

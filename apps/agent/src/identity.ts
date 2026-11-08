@@ -37,7 +37,24 @@ export interface Identity {
   registration: { status: "not_needed" | "waiting_for_funds" | "registering" | "registered" | "failed"; error?: string; at?: number };
 }
 
-const provider = () => new JsonRpcProvider({ url: config.nearRpc });
+/** Rotates to the next NEAR RPC only on transport trouble (rate limits, 5xx, timeouts); contract errors pass through untouched. */
+class RotatingRpcProvider extends JsonRpcProvider {
+  constructor(private urls: string[]) { super({ url: urls[0]! }); }
+  async sendJsonRpc<T>(method: string, params: object): Promise<T> {
+    let last: unknown;
+    for (const url of this.urls) {
+      (this as any).connection = { url };
+      try { return await super.sendJsonRpc<T>(method, params); }
+      catch (e) {
+        const m = String((e as any)?.message ?? e);
+        if (!/429|Rate limit|rate limit|50[0-9]|ETIMEDOUT|ECONNRESET|fetch failed|timeout|discontinued|Too Many/i.test(m)) throw e;
+        last = e;
+      }
+    }
+    throw last;
+  }
+}
+const provider = () => new RotatingRpcProvider([config.nearRpc, ...config.nearRpcFallbacks]);
 
 function toRsv(res: any) {
   return { r: res.big_r.affine_point.slice(2), s: res.s.scalar, v: res.recovery_id + 27 };
@@ -78,9 +95,17 @@ function devIdentity(): Identity {
 async function teeIdentity(): Promise<Identity> {
   if (!config.contractId) throw new Error("TEE mode needs OFFMAP_CONTRACT");
   const client = await ShadeClient.create({ networkId: config.network, agentContractId: config.contractId, rpc: provider() as any });
-  const accountId = client.accountId();
-  const keys = await client.getPrivateKeys({ acknowledgeRisk: true });
-  const kp = KeyPair.fromString(keys[0] as KeyPairString);
+  // A stable agent key: derived from dstack's key service, so it is the same for this app across compose
+  // updates (the account and its NEAR survive) and still only exists inside the TEE. The attestation that
+  // registers it is real: ShadeClient quotes over whichever account id it holds.
+  const { DstackClient } = await import("@phala/dstack-sdk");
+  const seed = Buffer.from((await new DstackClient().getKey("offmap/agent-ed25519", "offmap")).key).subarray(0, 32);
+  const { ed25519 } = await import("@noble/curves/ed25519");
+  const pub = Buffer.from(ed25519.getPublicKey(seed));
+  const kp = KeyPair.fromString(("ed25519:" + bs58.encode(Buffer.concat([seed, pub]))) as KeyPairString);
+  const accountId = pub.toString("hex");
+  (client as any).agentAccountId = accountId;
+  (client as any).agentPrivateKeys = [kp.toString()];
   return {
     accountId,
     intentsSigner: config.contractId,

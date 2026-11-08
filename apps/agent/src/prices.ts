@@ -28,11 +28,19 @@ async function coinbase(c: CohortConfig): Promise<PriceReading> {
   return { source: "coinbase", price: BigInt(w!) * PRICE_SCALE + BigInt((f + "00000000").slice(0, 8)) };
 }
 
+const GECKO: Record<string, string> = { "BTC-USD": "bitcoin", "ETH-USD": "ethereum" };
+async function coingecko(c: CohortConfig): Promise<PriceReading> {
+  const id = GECKO[c.coinbase]!;
+  const r: any = await (await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd&precision=8`, { signal: AbortSignal.timeout(10_000) })).json();
+  const [w, f = ""] = String(r[id].usd).split(".");
+  return { source: "coingecko", price: BigInt(w!) * PRICE_SCALE + BigInt((f + "00000000").slice(0, 8)) };
+}
+
 export interface PriceResult { price: bigint; readings: PriceReading[]; errors: string[] }
 
-/** Median of three independent sources. Refuses when fewer than two respond or when they split by more than 2%. */
+/** Median of up to four independent sources. Refuses when fewer than two respond or when they split by more than 2%. */
 export async function cohortPrice(c: CohortConfig): Promise<PriceResult> {
-  const settled = await Promise.allSettled([morphoOracle(c), kraken(c), coinbase(c)]);
+  const settled = await Promise.allSettled([morphoOracle(c), kraken(c), coinbase(c), coingecko(c)]);
   const readings = settled.flatMap((s) => (s.status === "fulfilled" ? [s.value] : []));
   const errors = settled.flatMap((s) => (s.status === "rejected" ? [String(s.reason)] : []));
   if (readings.length < 2) throw new Error(`price: only ${readings.length} sources (${errors.join("; ")})`);
@@ -40,6 +48,7 @@ export async function cohortPrice(c: CohortConfig): Promise<PriceResult> {
   const lo = sorted[0]!;
   const hi = sorted[sorted.length - 1]!;
   if ((hi - lo) * 10_000n > 200n * lo) throw new Error(`price: sources split ${readings.map((r) => `${r.source}=${r.price}`).join(", ")}`);
-  const price = sorted.length === 2 ? (sorted[0]! + sorted[1]!) / 2n : sorted[1]!;
+  const mid = Math.floor(sorted.length / 2);
+  const price = sorted.length % 2 === 0 ? (sorted[mid - 1]! + sorted[mid]!) / 2n : sorted[mid]!;
   return { price, readings, errors };
 }

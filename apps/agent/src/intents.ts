@@ -26,8 +26,15 @@ let saltCache: { salt: Buffer; at: number } | undefined;
 /** The verifying contract's live salt (intents.near returns it from current_salt). */
 async function intentsSalt(): Promise<Buffer> {
   if (saltCache && Date.now() - saltCache.at < 600_000) return saltCache.salt;
-  const r = await fetch(config.nearRpc, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "query", params: { request_type: "call_function", finality: "final", account_id: "intents.near", method_name: "current_salt", args_base64: "e30=" } }) });
-  const j: any = await r.json();
+  let j: any;
+  for (const url of [config.nearRpc, ...config.nearRpcFallbacks]) {
+    try {
+      const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, signal: AbortSignal.timeout(15_000), body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "query", params: { request_type: "call_function", finality: "final", account_id: "intents.near", method_name: "current_salt", args_base64: "e30=" } }) });
+      j = await r.json();
+      if (j?.result?.result) break;
+    } catch { /* next */ }
+  }
+  if (!j?.result?.result) throw new Error("intents salt: every NEAR RPC failed");
   const salt = Buffer.from(JSON.parse(Buffer.from(j.result.result).toString()), "hex");
   saltCache = { salt, at: Date.now() };
   return salt;

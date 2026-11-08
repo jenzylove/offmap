@@ -9,6 +9,7 @@ import { actionCreators } from "@near-js/transactions";
 const [to, near] = [process.argv[2]!, process.argv[3] ?? "1"];
 const dir = path.join(os.homedir(), ".near-credentials", "implicit");
 const cred = JSON.parse(fs.readFileSync(path.join(dir, fs.readdirSync(dir).find((f) => f.endsWith(".json"))!), "utf8"));
-const a = new Account(cred.implicit_account_id, new JsonRpcProvider({ url: "https://rpc.mainnet.fastnear.com" }), new KeyPairSigner(KeyPair.fromString(cred.private_key as KeyPairString)));
+const from = process.argv[4] ?? cred.implicit_account_id;
+const a = new Account(from, new JsonRpcProvider({ url: "https://rpc.mainnet.fastnear.com" }), new KeyPairSigner(KeyPair.fromString(cred.private_key as KeyPairString)));
 const r = await a.signAndSendTransaction({ receiverId: to, actions: [actionCreators.transfer(BigInt(Math.round(Number(near) * 1e6)) * 10n ** 18n)] });
 console.log("sent", near, "NEAR to", to, r.transaction.hash);

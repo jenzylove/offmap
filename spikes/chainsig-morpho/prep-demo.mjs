@@ -1,0 +1,13 @@
+import { encodeFunctionData, parseAbi, parseEther } from "viem";
+import { publicClient, sendFromDerived, baseAddress } from "./lib.mjs";
+const MORPHO = "0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb";
+const MARKET = "0x9103c3b4e834476c9a62ea009ba2c884ee42e94e6e314a26f04d312434191836";
+const PROD_COHORT = "0x5bDE486bF9F69331100F48edfF3cf580CB869B5a";
+const mp = "(address loanToken,address collateralToken,address oracle,address irm,uint256 lltv)";
+const abi = parseAbi(["function idToMarketParams(bytes32) view returns (address,address,address,address,uint256)", `function withdrawCollateral(${mp} mp,uint256 assets,address onBehalf,address receiver)`]);
+const me = await baseAddress();
+const [l, c, o, i, lltv] = await publicClient.readContract({ address: MORPHO, abi, functionName: "idToMarketParams", args: [MARKET] });
+const w = await sendFromDerived({ to: MORPHO, data: encodeFunctionData({ abi, functionName: "withdrawCollateral", args: [{ loanToken: l, collateralToken: c, oracle: o, irm: i, lltv }, 5300n, me, me] }) });
+console.log("withdraw 5300 sats", w);
+const g = await sendFromDerived({ to: PROD_COHORT, value: parseEther("0.0004") });
+console.log("gas to prod cohort", g);

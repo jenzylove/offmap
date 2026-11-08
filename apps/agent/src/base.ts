@@ -1,4 +1,4 @@
-import { createPublicClient, encodeFunctionData, http, keccak256, parseAbi, serializeTransaction, getAddress, type Address, type Hex } from "viem";
+import { createPublicClient, encodeFunctionData, fallback, http, keccak256, parseAbi, serializeTransaction, getAddress, type Address, type Hex } from "viem";
 import { base } from "viem/chains";
 import { secp256k1 } from "@noble/curves/secp256k1";
 import { sha3_256 } from "@noble/hashes/sha3";
@@ -6,7 +6,8 @@ import bs58 from "bs58";
 import { config, MORPHO, USDC_BASE, type CohortConfig } from "./config.js";
 import type { Identity } from "./identity.js";
 
-export const client = createPublicClient({ chain: base, transport: http(config.baseRpc) });
+// Several public Base RPCs: a datacenter IP rate limited on one must not stop a batch.
+export const client = createPublicClient({ chain: base, transport: fallback([config.baseRpc, "https://base-rpc.publicnode.com", "https://base.llamarpc.com", "https://1rpc.io/base"].map((u) => http(u, { timeout: 20_000, retryCount: 1 }))) });
 
 const mp = "(address loanToken,address collateralToken,address oracle,address irm,uint256 lltv)";
 export const abi = parseAbi([

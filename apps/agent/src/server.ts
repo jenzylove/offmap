@@ -8,7 +8,7 @@ import * as base from "./base.js";
 import * as intents from "./intents.js";
 import { cohortPrice } from "./prices.js";
 import { login, session } from "./auth.js";
-import { risk } from "./engine.js";
+import { risk, engineErrors } from "./engine.js";
 import { save, type State } from "./store.js";
 import type { Identity } from "./identity.js";
 
@@ -30,7 +30,7 @@ export function app(id: Identity, s: State) {
     return u;
   };
 
-  a.get("/health", (c) => c.json({ agent: id.accountId, registration: id.registration, intentsOwner: id.intentsSigner, tee: id.tee, contract: config.contractId || null,
+  a.get("/health", (c) => c.json({ agent: id.accountId, registration: id.registration, errors: engineErrors, intentsOwner: id.intentsSigner, tee: id.tee, contract: config.contractId || null,
     cohorts: COHORTS.map((k) => ({ id: k.id, address: base.cohortAddress(id.mpcPredecessor, k.id) })), lastBatch: s.batches.at(-1) ?? null }));
 
   // Anyone can fetch the hardware attestation and check it against the measurements offmap.near approves.

@@ -24,6 +24,9 @@ export function splitLots(amount: bigint): bigint[] {
 }
 
 const log = (...a: unknown[]) => console.log(new Date().toISOString(), ...a);
+/** Last error per stage, served on /health so a failing batch is never invisible. */
+export const engineErrors: Record<string, { at: string; error: string }> = {};
+const note = (key: string, e: unknown) => { engineErrors[key] = { at: new Date().toISOString(), error: String((e as any)?.message ?? e).slice(0, 500) }; };
 
 /** Pull the status of every waiting deposit; mark arrivals with the amount that reached the confidential balance. */
 async function pollDeposits(s: State) {
@@ -33,7 +36,7 @@ async function pollDeposits(s: State) {
       if (st.status === "SUCCESS") { p.status = "arrived"; p.arrivedAmount = String(st.swapDetails.amountOut); }
       else if (["REFUNDED", "FAILED"].includes(st.status)) { p.status = "failed"; p.note = st.status; }
       else if (Date.now() - p.createdAt > 26 * 3600e3) { p.status = "failed"; p.note = "expired"; }
-    } catch (e) { log("poll", p.id, String(e)); }
+    } catch (e) { note("poll", e); log("poll", p.id, String(e)); }
   }
 }
 
@@ -52,6 +55,7 @@ export async function runCohort(id: Identity, s: State, c: CohortConfig) {
   const txs: string[] = [];
   const { price } = await cohortPrice(c);
   const now = Math.floor(Date.now() / 1000);
+  await ensureFreshStatement(id, s, c, price, addr);
 
   // 1. Collateral that arrived privately: move it to the cohort on Base and supply it. Users are credited with what lands.
   const arrived = s.pending.filter((p) => p.status === "arrived" && p.kind === "deposit" && p.cohortId === c.id);
@@ -59,11 +63,19 @@ export async function runCohort(id: Identity, s: State, c: CohortConfig) {
   if (arrived.length) {
     const total = arrived.reduce((a, p) => a + BigInt(p.arrivedAmount!), 0n);
     await ensureGas(id, c);
-    const before = await base.erc20Balance(c.collateralToken, addr);
-    const { quote } = await intents.payFromConfidential(id, { asset: c.collateralAssetId, amount: total.toString(), destinationAsset: c.collateralAssetId, recipient: addr });
-    const st = await intents.waitFor(quote.depositAddress);
-    if (st.status !== "SUCCESS") throw new Error(`collateral transit ${st.status}`);
-    const landed = (await base.erc20Balance(c.collateralToken, addr)) - before;
+    // Trust the chain, not a status message: collateral that already sits idle on the cohort address
+    // (a transit that landed but was reported as failed) is supplied as is, never moved twice.
+    const idle = await base.erc20Balance(c.collateralToken, addr);
+    let landed: bigint;
+    if (idle * 100n >= total * 98n) {
+      landed = idle;
+    } else {
+      const before = idle;
+      const { quote } = await intents.payFromConfidential(id, { asset: c.collateralAssetId, amount: total.toString(), destinationAsset: c.collateralAssetId, recipient: addr });
+      const st = await intents.waitFor(quote.depositAddress);
+      landed = (await base.erc20Balance(c.collateralToken, addr)) - before;
+      if (landed <= 0n) throw new Error(`collateral transit ${st.status}, nothing landed on ${addr}`);
+    }
     txs.push(...(await base.supply(id, c, landed)));
     let left = landed;
     arrived.forEach((p, i) => {
@@ -117,16 +129,23 @@ export async function runCohort(id: Identity, s: State, c: CohortConfig) {
   const netDebt = borrowed - repaidUsdc - liqRepaid;
   if (netDebt > 0n) {
     await ensureGas(id, c);
-    txs.push(...(await base.borrow(id, c, netDebt)));
+    // Idempotent: USDC already idle on the cohort (a borrow whose return was reported as failed) counts first.
+    const idleUsdc = await base.erc20Balance(USDC_BASE, addr);
+    if (idleUsdc < netDebt) txs.push(...(await base.borrow(id, c, netDebt - idleUsdc)));
     const q = await intents.quoteFromBaseIntoConfidential(id, { baseAsset: USDC_BASE_ID, amount: netDebt.toString(), asset: USDC_INTENTS_ID, refundTo: addr });
     txs.push(await base.transfer(id, c, USDC_BASE, q.depositAddress as Address, netDebt));
-    if ((await intents.waitFor(q.depositAddress)).status !== "SUCCESS") throw new Error("borrow return failed");
+    const st = await intents.waitFor(q.depositAddress);
+    if (st.status !== "SUCCESS") note(`return:${c.id}`, `borrowed USDC sent to Intents, status ${st.status}; refunds come back to ${addr}`);
   } else if (netDebt < 0n) {
     const need = -netDebt;
     const before = await base.erc20Balance(USDC_BASE, addr);
-    const { quote } = await intents.payFromConfidential(id, { asset: USDC_INTENTS_ID, amount: need.toString(), destinationAsset: USDC_BASE_ID, recipient: addr });
-    if ((await intents.waitFor(quote.depositAddress)).status !== "SUCCESS") throw new Error("repay transit failed");
-    txs.push(...(await base.repay(id, c, (await base.erc20Balance(USDC_BASE, addr)) - before)));
+    if (before < need) {
+      const { quote } = await intents.payFromConfidential(id, { asset: USDC_INTENTS_ID, amount: (need - before).toString(), destinationAsset: USDC_BASE_ID, recipient: addr });
+      await intents.waitFor(quote.depositAddress);
+    }
+    const have = await base.erc20Balance(USDC_BASE, addr);
+    if (have <= 0n) throw new Error("repay transit: no USDC landed on the cohort");
+    txs.push(...(await base.repay(id, c, have < need ? have : need)));
   }
 
   // 5. Commit: new ledger, statement on offmap.near, notes, payouts.
@@ -139,23 +158,41 @@ export async function runCohort(id: Identity, s: State, c: CohortConfig) {
     else if (r.kind === "borrow") queuePayouts(s, r.userId, USDC_INTENTS_ID, BigInt(r.amount), r.receive);
     else if (r.kind === "withdraw") queuePayouts(s, r.userId, c.collateralAssetId, BigInt(r.amount), r.receive, false);
   }
-  const batchId = String(++s.batchCounter[c.id]!);
-  const cm = commit(res.ledger);
-  const stmt = buildStatement(res.ledger, cm, batchId, Date.now());
-  let statementTx: string | undefined;
-  if (config.contractId) {
-    const t = totals(res.ledger);
-    const onchain = await base.position(c, addr);
-    const r: any = await id.callContract("submit_statement", { stmt: {
-      cohort_id: c.id, batch_id: batchId, total_collateral: t.collateral.toString(), total_debt: t.debt.toString(),
-      reserve: res.ledger.reserve.toString(), collateral_value_loan: collateralValue(t.collateral, price, c).toString(),
-      borrow_shares: onchain.borrowShares.toString(), merkle_root: stmt.merkleRoot, leaf_count: stmt.leafCount, timestamp_ms: String(stmt.timestamp) } });
-    statementTx = r?.transaction?.hash;
-  }
+  // The ledger is committed; a failed statement post is retried by the freshness check on the next tick.
+  let batchId: string, cm: ReturnType<typeof commit>, statementTx: string | undefined;
+  try { ({ batchId, cm, statementTx } = await postStatement(id, s, c, res.ledger, price, addr)); }
+  catch (e) { note(`statement:${c.id}`, e); batchId = String(s.batchCounter[c.id]); cm = commit(res.ledger); }
   for (const p of res.ledger.positions.values()) s.notes[`${c.id}:${p.userId}`] = createNote(p, cm, batchId);
   s.batches.push({ batchId, cohortId: c.id, at: Date.now(), txs, statementTx, delta: { collateral: res.delta.collateralDelta.toString(), debt: res.delta.debtDelta.toString() }, usersChanged: new Set(res.applied.map((o) => o.userId)).size });
   save(s);
   log("batch", c.id, batchId, "ops", res.applied.length, "rejected", res.rejected.length, "liquidations", res.liquidations.length, "txs", txs.length);
+}
+
+/** Publishes the solvency statement for a ledger on the contract. Returns the batch id and commitment. */
+async function postStatement(id: Identity, s: State, c: CohortConfig, ledger: State["ledgers"][string], price: bigint, addr: Address) {
+  const batchId = String(++s.batchCounter[c.id]!);
+  const cm = commit(ledger);
+  const stmt = buildStatement(ledger, cm, batchId, Date.now());
+  let statementTx: string | undefined;
+  if (config.contractId) {
+    const t = totals(ledger);
+    const onchain = await base.position(c, addr);
+    const r: any = await id.callContract("submit_statement", { stmt: {
+      cohort_id: c.id, batch_id: batchId, total_collateral: t.collateral.toString(), total_debt: t.debt.toString(),
+      reserve: ledger.reserve.toString(), collateral_value_loan: collateralValue(t.collateral, price, c).toString(),
+      borrow_shares: onchain.borrowShares.toString(), merkle_root: stmt.merkleRoot, leaf_count: stmt.leafCount, timestamp_ms: String(stmt.timestamp) } });
+    statementTx = r?.transaction?.hash;
+  }
+  save(s);
+  return { batchId, cm, stmt, statementTx };
+}
+
+/** The contract signs only for a cohort with a fresh statement: post one for the current ledger first if needed. */
+async function ensureFreshStatement(id: Identity, s: State, c: CohortConfig, price: bigint, addr: Address) {
+  if (!config.contractId) return;
+  const v: any = await id.viewContract("statement", { cohort_id: c.id }).catch(() => null);
+  const acceptedAt = Number(v?.accepted_at_ms ?? 0);
+  if (!v || Date.now() - acceptedAt > 20 * 60_000) await postStatement(id, s, c, s.ledgers[c.id]!, price, addr);
 }
 
 /** Borrowed USDC leaves in round lots, each after a random delay, to blunt amount and timing links. */
@@ -169,15 +206,30 @@ function queuePayouts(s: State, userId: string, asset: string, amount: bigint, r
 }
 
 async function runPayouts(id: Identity, s: State) {
+  // Payouts sent before a restart: resolve them from their status instead of leaving them stuck.
+  for (const p of s.payouts.filter((p) => p.status === "sent" && p.deposit)) {
+    try {
+      const st = await intents.status(p.deposit!);
+      if (st.status === "SUCCESS") { p.status = "done"; p.tx = st.swapDetails?.destinationChainTxHashes?.[0]?.hash; }
+      else if (["REFUNDED", "FAILED"].includes(st.status)) p.status = "failed";
+    } catch (e) { note("payout", e); }
+  }
+  // A failed lot is retried (at most three times) instead of being dropped.
+  for (const p of s.payouts.filter((p) => p.status === "failed" && (p.tries ?? 0) < 3)) { p.status = "queued"; p.notBefore = Date.now(); }
   for (const p of s.payouts.filter((p) => p.status === "queued" && p.notBefore <= Date.now())) {
     try {
-      const { quote } = await intents.payFromConfidential(id, { asset: p.asset, amount: p.amount, destinationAsset: p.destinationAsset, recipient: p.recipient });
-      p.status = "sent"; p.deposit = quote.depositAddress; save(s);
+      // Transit fees leave the private balance slightly under the borrowed total: pay what is there, never more than owed.
+      const available = (await intents.confidentialBalances(id)).get(p.asset) ?? 0n;
+      const amount = BigInt(p.amount) < available ? BigInt(p.amount) : available;
+      if (amount <= 0n) { note("payout", `nothing available for ${p.asset}`); continue; }
+      p.tries = (p.tries ?? 0) + 1;
+      const { quote } = await intents.payFromConfidential(id, { asset: p.asset, amount: amount.toString(), destinationAsset: p.destinationAsset, recipient: p.recipient });
+      p.status = "sent"; p.deposit = quote.depositAddress; p.amount = amount.toString(); save(s);
       const st = await intents.waitFor(quote.depositAddress);
       p.status = st.status === "SUCCESS" ? "done" : "failed";
       p.tx = st.swapDetails?.destinationChainTxHashes?.[0]?.hash;
       save(s);
-    } catch (e) { log("payout", p.id, String(e)); }
+    } catch (e) { note("payout", e); log("payout", p.id, String(e)); }
   }
 }
 
@@ -201,10 +253,10 @@ export async function tick(id: Identity, s: State) {
       // Open positions are checked every tick for private liquidation; a statement is refreshed at least every 15 minutes.
       const needsLiq = open && (await needsLiquidation(s, c));
       if (!moves && !needsLiq && !(open && Date.now() - last > 15 * 60_000)) continue;
-      try { await runCohort(id, s, c); } catch (e) { log("cohort", c.id, "failed, ledger unchanged:", String(e)); }
+      try { await runCohort(id, s, c); delete engineErrors[`cohort:${c.id}`]; } catch (e) { note(`cohort:${c.id}`, e); log("cohort", c.id, "failed, ledger unchanged:", String(e)); }
     }
     await runPayouts(id, s);
-    if (Date.now() - lastLeak > 3600_000) { lastLeak = Date.now(); await runLeakStudy(s).catch((e) => log("leak", String(e))); }
+    if (Date.now() - lastLeak > 3600_000) { lastLeak = Date.now(); await runLeakStudy(s).catch((e) => { note("leak", e); log("leak", String(e)); }); }
     save(s);
   } finally { running = false; }
 }
