@@ -3,3 +3,8 @@ packages:
   - "apps/*"
 allowBuilds:
   esbuild: true
+  "@tailwindcss/oxide": true
+  sharp: true
+  bufferutil: false
+  secp256k1: false
+  utf-8-validate: false
