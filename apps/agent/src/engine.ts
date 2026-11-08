@@ -7,6 +7,9 @@ import * as intents from "./intents.js";
 import { cohortPrice } from "./prices.js";
 import type { Identity } from "./identity.js";
 import { save, type State, type Payout } from "./store.js";
+import { runLeakStudy } from "./leak.js";
+
+let lastLeak = 0;
 
 export const risk: RiskConfig = { ...DEFAULT_RISK, userCapLoan: config.userCapLoan };
 
@@ -149,7 +152,7 @@ export async function runCohort(id: Identity, s: State, c: CohortConfig) {
     statementTx = r?.transaction?.hash;
   }
   for (const p of res.ledger.positions.values()) s.notes[`${c.id}:${p.userId}`] = createNote(p, cm, batchId);
-  s.batches.push({ batchId, cohortId: c.id, at: Date.now(), txs, statementTx, delta: { collateral: res.delta.collateralDelta.toString(), debt: res.delta.debtDelta.toString() } });
+  s.batches.push({ batchId, cohortId: c.id, at: Date.now(), txs, statementTx, delta: { collateral: res.delta.collateralDelta.toString(), debt: res.delta.debtDelta.toString() }, usersChanged: new Set(res.applied.map((o) => o.userId)).size });
   save(s);
   log("batch", c.id, batchId, "ops", res.applied.length, "rejected", res.rejected.length, "liquidations", res.liquidations.length, "txs", txs.length);
 }
@@ -177,6 +180,13 @@ async function runPayouts(id: Identity, s: State) {
   }
 }
 
+async function needsLiquidation(s: State, c: CohortConfig): Promise<boolean> {
+  try {
+    const { price } = await cohortPrice(c);
+    return liquidationOps(s.ledgers[c.id]!, price, risk).length > 0;
+  } catch { return false; }
+}
+
 let running = false;
 export async function tick(id: Identity, s: State) {
   if (running) return;
@@ -184,11 +194,16 @@ export async function tick(id: Identity, s: State) {
   try {
     await pollDeposits(s);
     for (const c of COHORTS) {
-      const hasWork = s.pending.some((p) => p.cohortId === c.id && (p.status === "arrived" || p.status === "supplied")) || s.requests.some((r) => r.cohortId === c.id && r.status === "queued") || s.ledgers[c.id]!.positions.size > 0;
-      if (!hasWork) continue;
+      const moves = s.pending.some((p) => p.cohortId === c.id && (p.status === "arrived" || p.status === "supplied")) || s.requests.some((r) => r.cohortId === c.id && r.status === "queued");
+      const open = s.ledgers[c.id]!.positions.size > 0;
+      const last = s.batches.filter((b) => b.cohortId === c.id).at(-1)?.at ?? 0;
+      // Open positions are checked every tick for private liquidation; a statement is refreshed at least every 15 minutes.
+      const needsLiq = open && (await needsLiquidation(s, c));
+      if (!moves && !needsLiq && !(open && Date.now() - last > 15 * 60_000)) continue;
       try { await runCohort(id, s, c); } catch (e) { log("cohort", c.id, "failed, ledger unchanged:", String(e)); }
     }
     await runPayouts(id, s);
+    if (Date.now() - lastLeak > 3600_000) { lastLeak = Date.now(); await runLeakStudy(s).catch((e) => log("leak", String(e))); }
     save(s);
   } finally { running = false; }
 }

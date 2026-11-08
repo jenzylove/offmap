@@ -24,7 +24,7 @@ export interface Pending {
 export interface Receive { asset: string; address: string }
 export interface Request { id: string; kind: "borrow" | "withdraw"; userId: string; cohortId: string; amount: string; receive: Receive; createdAt: number; status: "queued" | "applied" | "rejected"; reason?: string }
 export interface Payout { id: string; userId: string; asset: string; amount: string; destinationAsset: string; recipient: string; notBefore: number; status: "queued" | "sent" | "done" | "failed"; deposit?: string; tx?: string }
-export interface BatchLog { batchId: string; cohortId: string; at: number; txs: string[]; statementTx?: string; delta: { collateral: string; debt: string } }
+export interface BatchLog { batchId: string; cohortId: string; at: number; txs: string[]; statementTx?: string; delta: { collateral: string; debt: string }; usersChanged?: number }
 
 export interface State {
   ledgers: Record<string, CohortLedger>;
