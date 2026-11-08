@@ -44,17 +44,21 @@ function ContractBlock() {
     return <NotLive title={`${CONTRACT_ID} is not deployed yet`}>The account does not exist on NEAR mainnet. Its code hash, access keys, attestation registry and statements appear here once it is.</NotLive>;
   if (s.kind === "no_code") return <NotLive title={`${CONTRACT_ID} has no code yet`}>The account exists but no contract is deployed to it.</NotLive>;
   if (s.kind === "error") return <ErrorLine>{s.message}</ErrorLine>;
-  const measurements = cfg.data?.config?.approved_measurements ?? cfg.data?.config?.code_hashes;
+  const approved = (cfg.data?.config?.approved_measurements as { app_compose_hash_payload?: string }[] | undefined) ?? [];
+  const agents = cfg.data?.agentInfo ?? [];
+  const valid = agents.filter((a) => a.validity === "Valid");
+  const retired = agents.length - valid.length;
   return (
     <div>
       <Row k="Contract" v={CONTRACT_ID} href={nearblocksAddr(CONTRACT_ID)} />
       <Row k="Deployed code hash" v={short(s.codeHash, 10, 8)} sub="compare with the reproducible build in the repo" />
       <Row k="Access keys" v={<span className={s.accessKeys === 0 ? "text-good" : "text-bad"}>{s.accessKeys === 0 ? "none (nobody holds a key)" : `${s.accessKeys} key(s) present`}</span>} />
       <Row k="Mode" v={cfg.data?.mode ?? "n/a"} />
-      <Row k="Accepted agent code" v={measurements ? <span className="break-all">{JSON.stringify(measurements).slice(0, 120)}</span> : "not readable"} />
+      <Row k="Accepted agent code" v={approved.length ? approved.map((m) => short(String(m.app_compose_hash_payload ?? ""), 10, 8)).join(", ") : "not readable"} sub="compose hash of the only image allowed to register" />
       <Row
         k="Registered agents"
-        v={cfg.data?.agentInfo?.length ? <span className="break-all">{cfg.data.agentInfo.map((a) => `${short(a.account_id, 8, 6)} ${a.validity === "Valid" ? "valid" : JSON.stringify(a.validity)}`).join(", ")}</span> : "none registered"}
+        v={valid.length ? valid.map((a) => `${short(a.account_id, 8, 6)} valid`).join(", ") : "none valid"}
+        sub={retired ? `${retired} earlier instance(s) retired: their code is no longer accepted` : undefined}
       />
     </div>
   );
@@ -62,11 +66,11 @@ function ContractBlock() {
 
 function AttestationBlock() {
   const h = useLive(() => agent<AgentHealth>("/health"), [], 60_000);
+  const att = useLive(() => agent<{ quote?: unknown[]; tcb_info?: { compose_hash?: string } }>("/attestation").catch(() => null), [], 300_000);
   if (!agentConfigured) return <NotLive title="The agent is not live yet">No agent is running, so there is no attestation to show.</NotLive>;
   if (h.error) return <ErrorLine>The agent at {AGENT_URL} did not answer: {h.error}</ErrorLine>;
   if (!h.data) return <div className="num text-[12px] text-ink-3">Asking the agent…</div>;
   const d = h.data;
-  const tee = d.tee && typeof d.tee === "object" ? d.tee : null;
   return (
     <div>
       {!d.tee && (
@@ -78,7 +82,12 @@ function AttestationBlock() {
       )}
       <Row k="Agent NEAR account" v={short(d.agent, 10, 8)} href={nearblocksAddr(d.agent)} />
       <Row k="Owner of the private Intents balance" v={d.intentsOwner ? short(d.intentsOwner, 10, 8) : "n/a"} />
-      <Row k="Attestation" v={tee ? <span className="break-all">{JSON.stringify(tee).slice(0, 140)}</span> : "none"} />
+      <Row
+        k="Attestation"
+        v={d.tee ? (att.data?.tcb_info?.compose_hash ? `Intel TDX quote · compose ${short(att.data.tcb_info.compose_hash, 8, 6)}` : "Intel TDX") : "none"}
+        href={d.tee ? `${AGENT_URL}/attestation` : undefined}
+        sub={d.tee ? "the full quote; its compose hash must equal the accepted agent code above" : undefined}
+      />
       <Row k="Contract it reports to" v={d.contract ?? "none yet"} />
       {d.cohorts.map((c) => (
         <Row key={c.id} k={`Cohort ${c.id} on Base`} v={short(c.address)} href={basescanAddr(c.address)} sub="chain signatures address, no private key exists" />
@@ -95,7 +104,7 @@ function LedgerBlock() {
   if (!pc.data) return <div className="num text-[12px] text-ink-3">Loading published totals…</div>;
   return (
     <div className="mt-10">
-      <div className="eyebrow mb-2">Published by the agent until the contract holds statements</div>
+      <div className="eyebrow mb-2">Published by the agent, checked against Morpho</div>
       <div className="grid gap-10 md:grid-cols-2">
         {pc.data.cohorts.map((k) => {
           const c = cohortById(k.cohort);

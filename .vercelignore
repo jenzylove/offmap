@@ -1,0 +1,11 @@
+**/node_modules
+**/target
+contracts
+spikes
+apps/agent
+docs
+scripts
+**/.next
+**/out
+**/data
+*.log

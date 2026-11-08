@@ -5,3 +5,8 @@ contracts/base/lib/
 contracts/base/cache/
 contracts/base/out/
 apps/agent/data/
+
+.vercel
+.env*
+spikes/merkle-gas/target/
+spikes/merkle-gas/bad.json
