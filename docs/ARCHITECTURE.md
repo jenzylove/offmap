@@ -25,7 +25,8 @@ contracts/base  EjectHelper (immutable)  ◄── eject tx ──────�
 | Contract | `offmap.near` (mainnet). Dev: a testnet account |
 | MPC | `v1.signer` mainnet, `v1.signer-prod.testnet` testnet; domain 0 secp256k1; deposit 1 yocto |
 | Cohort Base address | derived from predecessor `offmap.near`, path `cohort:<cohort_id>` (e.g. `cohort:cbbtc-usdc`) |
-| Agent NEAR account | 64 hex implicit account generated inside the TEE; it owns the confidential Intents balance |
+| Agent NEAR account | 64 hex implicit account generated inside the TEE (ephemeral) |
+| Confidential Intents balance owner | `offmap.near` itself. `register_agent` adds the attested agent's key to `intents.near` (`add_public_key`); expired or replaced agents are pruned; recovery mode removes all agent keys. Agents sign intents with `signer_id = offmap.near` |
 | Morpho Blue | `0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb` on Base (8453) |
 | Cohort `cbbtc-usdc` | market `0x9103c3b4e834476c9a62ea009ba2c884ee42e94e6e314a26f04d312434191836`, collateral cbBTC `0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf` (8 dec) |
 | Cohort `weth-usdc` | market `0x8793cf302b8ffd655ab97bd1c695dbd967807e8367a65cb2f4edaf1380ba1bda`, collateral WETH `0x4200000000000000000000000000000000000006` (18 dec) |
