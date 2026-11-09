@@ -36,15 +36,19 @@ import { NEAR_RPC } from "@/lib/config";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message.split("\n")[0]! : String(e));
 
-function Step({ n, title, done, children }: { n: number; title: string; done?: boolean; children: ReactNode }) {
+function Step({ n, title, done, active, children }: { n: number; title: string; done?: boolean; active?: boolean; children: ReactNode }) {
   return (
-    <li className="relative grid grid-cols-[32px_minmax(0,1fr)] gap-5 pb-14 last:pb-0">
-      <div className={`relative z-10 grid h-8 w-8 place-items-center rounded-full border num text-[12px] ${done ? "border-[var(--good)] bg-[var(--good)] text-paper" : "border-[var(--ink)] bg-paper"}`}>
+    <li className={`relative grid grid-cols-[36px_minmax(0,1fr)] gap-5 pb-16 transition-opacity duration-500 last:pb-0 md:gap-8 ${active || done ? "opacity-100" : "opacity-45"}`}>
+      <div
+        className={`num relative z-10 grid h-9 w-9 place-items-center rounded-full text-[12px] transition-colors duration-500 ${
+          done ? "bg-cold text-[var(--accent-ink)]" : active ? "bg-paper text-cold ring-1 ring-cold shadow-[0_0_18px_rgba(127,233,255,0.35)]" : "bg-paper text-ink-2 ring-1 ring-white/15"
+        }`}
+      >
         {done ? "✓" : n}
       </div>
       <div className="min-w-0">
-        <h2 className="font-serif text-[28px] leading-tight">{title}</h2>
-        <div className="mt-4">{children}</div>
+        <h2 className="wide pt-1 text-[clamp(22px,2.6vw,32px)] font-semibold leading-tight">{title}</h2>
+        <div className="mt-5">{children}</div>
       </div>
     </li>
   );
@@ -331,14 +335,17 @@ export function EjectFlow() {
   };
 
   const contractLive = ctx?.contract.kind === "live";
+  // presentation only: which step is in focus
+  const stepDone = [!!note, !!user && owns === true, !!auths, !!preview?.remote && preview.remote.payload_hash === localPayload, broadcast?.status === "confirmed"];
+  const activeStep = stepDone.findIndex((d) => !d);
 
   return (
+    <>
+    <EjectProgress flags={stepDone} />
     <ol className="relative">
-      <svg aria-hidden="true" className="absolute left-[15px] top-2 h-[calc(100%-16px)] w-2" preserveAspectRatio="none" viewBox="0 0 2 100">
-        <line x1="1" y1="0" x2="1" y2="100" stroke="var(--accent)" strokeWidth="2" strokeDasharray="4 4" vectorEffect="non-scaling-stroke" />
-      </svg>
+      <span aria-hidden="true" className="absolute left-[17px] top-3 h-[calc(100%-24px)] w-px bg-gradient-to-b from-cold/50 via-white/10 to-white/5" />
 
-      <Step n={1} title="Paste your latest note" done={!!note}>
+      <Step n={1} title="Paste your latest note" done={!!note} active={activeStep === 0}>
         <p className="max-w-xl text-ink-2">Your note holds your share, the salt for your leaf, and your Merkle proof. Save it from your view after each batch.</p>
         <textarea className="field mt-4 min-h-32 resize-y font-mono text-[13px]" placeholder='{"cohortId":"cbbtc-usdc", …}' value={text} onChange={(e) => setText(e.target.value)} spellCheck={false} />
         <button
@@ -376,7 +383,7 @@ export function EjectFlow() {
         )}
       </Step>
 
-      <Step n={2} title="Connect the wallet that receives your position" done={!!user && owns === true}>
+      <Step n={2} title="Connect the wallet that receives your position" done={!!user && owns === true} active={activeStep === 1}>
         <p className="max-w-xl text-ink-2">Your Base wallet. It must be the wallet your loan belongs to: the contract checks that the note was issued to exactly this address.</p>
         <button
           className="btn mt-4"
@@ -397,7 +404,7 @@ export function EjectFlow() {
         {owns === true && <p className="mt-4 text-good">This wallet owns the note.</p>}
       </Step>
 
-      <Step n={3} title="Sign two Morpho authorizations" done={!!auths}>
+      <Step n={3} title="Sign two Morpho authorizations" done={!!auths} active={activeStep === 2}>
         <p className="max-w-xl text-ink-2">
           One lets the immutable eject helper open the position at your wallet; the second takes that permission back in the same transaction, so the helper keeps no access. Signing is free and moves nothing on its own.
         </p>
@@ -413,7 +420,7 @@ export function EjectFlow() {
         {signErr && <div className="mt-4"><ErrorLine>{signErr}</ErrorLine></div>}
       </Step>
 
-      <Step n={4} title={`Check it with ${CONTRACT_ID}`} done={!!preview?.remote && preview.remote.payload_hash === localPayload}>
+      <Step n={4} title={`Check it with ${CONTRACT_ID}`} done={stepDone[3]} active={activeStep === 3}>
         <p className="max-w-xl text-ink-2">
           The transaction is sent from the cohort&apos;s Base address, so its nonce and fees are read from that address. The contract then runs every eject check on these exact arguments without signing anything.
         </p>
@@ -451,14 +458,14 @@ export function EjectFlow() {
         </div>
       </Step>
 
-      <Step n={5} title="Submit, then broadcast to Base" done={broadcast?.status === "confirmed"}>
+      <Step n={5} title="Submit, then broadcast to Base" done={stepDone[4]} active={activeStep === 4}>
         <p className="max-w-xl text-ink-2">
           Any NEAR account can submit. The contract verifies your leaf, marks it spent and has the NEAR signer network sign the transaction with the cohort&apos;s key. This page then rebuilds the signed transaction, checks who signed it, and broadcasts it to Base.
         </p>
         {args && (
           <details className="mt-4">
             <summary className="num text-[12px] uppercase tracking-[0.1em] text-ink-2">Show the exact call</summary>
-            <pre className="num mt-3 max-h-72 overflow-auto bg-paper-2 p-4 text-[11px] leading-relaxed text-ink-2">{`${CONTRACT_ID}.eject(${JSON.stringify(args, null, 2)})\ngas 100 Tgas · deposit 0.02 NEAR (pays for the eject record)`}</pre>
+            <pre className="num mt-3 max-h-72 overflow-auto rounded-xl bg-black/40 p-4 text-[11px] leading-relaxed text-ink-2">{`${CONTRACT_ID}.eject(${JSON.stringify(args, null, 2)})\ngas 100 Tgas · deposit 0.02 NEAR (pays for the eject record)`}</pre>
           </details>
         )}
         <div className="mt-5 flex flex-wrap gap-3">
@@ -495,5 +502,28 @@ export function EjectFlow() {
         )}
       </Step>
     </ol>
+    </>
+  );
+}
+
+const EJECT_STEPS = ["Note", "Wallet", "Authorize", "Check", "Submit"];
+
+function EjectProgress({ flags }: { flags: boolean[] }) {
+  const current = flags.findIndex((d) => !d);
+  const at = current === -1 ? EJECT_STEPS.length : current;
+  return (
+    <div className="mb-14">
+      <div className="grid grid-cols-5 gap-2 md:gap-3">
+        {EJECT_STEPS.map((s, i) => (
+          <div key={s} className="min-w-0">
+            <span className={`block h-[3px] rounded-full transition-colors duration-500 ${i < at ? "bg-cold/70" : i === at ? "bg-cold shadow-[0_0_14px_var(--cold)]" : "bg-white/10"}`} />
+            <div className={`mt-2 hidden truncate text-[13px] sm:block ${i === at ? "text-ink" : i < at ? "text-ink-2" : "text-ink-3"}`}>{s}</div>
+          </div>
+        ))}
+      </div>
+      <div className="num mt-3 text-[12px] text-cold sm:hidden">
+        {at < EJECT_STEPS.length ? `Step ${at + 1} of ${EJECT_STEPS.length}: ${EJECT_STEPS[at]}` : "Done"}
+      </div>
+    </div>
   );
 }

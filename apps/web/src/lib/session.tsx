@@ -15,8 +15,15 @@ interface SessionState {
   error: string | null;
   /** Why there is an owner but no token, in plain words. */
   note: string | null;
+  /** Asks the browser wallet for an account. No signature, no session. */
+  connect: () => Promise<void>;
+  /** Connects if needed, then signs the free auth message and opens an agent session. */
   signInEvm: () => Promise<void>;
   signOut: () => void;
+  /** Keeps the wallet, drops an agent session the agent no longer accepts. */
+  expire: () => void;
+  /** True once the stored session has been read on mount. */
+  ready: boolean;
   ownerString: string | null;
 }
 
@@ -63,6 +70,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     try {
@@ -75,6 +83,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     } catch {
       /* storage blocked */
     }
+    setReady(true);
   }, []);
 
   const persist = (o: Owner | null, t: string | null) => {
@@ -102,6 +111,41 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setNote(`Wallet connected, but the agent did not open a session: ${msg}`);
       persist(o, null);
     }
+  }, []);
+
+  const connect = useCallback(async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const { address } = await evmWallet();
+      const o: Owner = { kind: "evm", address };
+      setOwner(o);
+      setToken(null);
+      persist(o, null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
+  // A different account in the wallet means a different loan: drop the session.
+  useEffect(() => {
+    const p = evmProvider() as (EIP1193Provider & { removeListener?: (e: string, f: (a: string[]) => void) => void }) | null;
+    if (!p?.on) return;
+    const onAccounts = (accounts: string[]) => {
+      setOwner((cur) => {
+        if (!cur || cur.kind !== "evm") return cur;
+        const next = accounts[0];
+        if (next && next.toLowerCase() === cur.address.toLowerCase()) return cur;
+        setToken(null);
+        const o: Owner | null = next ? { kind: "evm", address: getAddress(next) } : null;
+        persist(o, null);
+        return o;
+      });
+    };
+    p.on("accountsChanged", onAccounts as never);
+    return () => p.removeListener?.("accountsChanged", onAccounts);
   }, []);
 
   const signInEvm = useCallback(async () => {
@@ -134,11 +178,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     persist(null, null);
   }, []);
 
+  const expire = useCallback(() => {
+    setToken(null);
+    setOwner((o) => {
+      persist(o, null);
+      return o;
+    });
+  }, []);
+
   const ownerString = owner ? (owner.kind === "evm" ? `evm:${owner.address.toLowerCase()}` : `near:${owner.accountId}`) : null;
 
   const value = useMemo(
-    () => ({ owner, token, busy, error, note, signInEvm, signOut, ownerString }),
-    [owner, token, busy, error, note, signInEvm, signOut, ownerString],
+    () => ({ owner, token, busy, error, note, connect, signInEvm, signOut, expire, ownerString, ready }),
+    [owner, token, busy, error, note, connect, signInEvm, signOut, expire, ownerString, ready],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

@@ -91,8 +91,13 @@ export function HunterMap({
       <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full overflow-visible" role="img" aria-label={`Liquidation levels of public ${symbol} borrowers`}>
         <defs>
           <linearGradient id="heatfill" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0" stopColor="var(--accent)" stopOpacity="0.55" />
-            <stop offset="1" stopColor="var(--accent)" stopOpacity="0.02" />
+            <stop offset="0" stopColor="var(--heat)" stopOpacity="0.6" />
+            <stop offset="0.5" stopColor="var(--heat-2)" stopOpacity="0.22" />
+            <stop offset="1" stopColor="var(--heat-2)" stopOpacity="0.0" />
+          </linearGradient>
+          <linearGradient id="heatline" x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0" stopColor="var(--heat-2)" />
+            <stop offset="1" stopColor="var(--heat)" />
           </linearGradient>
           <filter id="glow" x="-20%" y="-60%" width="140%" height="220%">
             <feGaussianBlur stdDeviation="6" />
@@ -102,7 +107,7 @@ export function HunterMap({
         {/* relief: nested ridge lines like a cross section through contours */}
         <path d={ridge(1) + "Z"} fill="url(#heatfill)" />
         {[1, 0.78, 0.58, 0.4, 0.24, 0.12].map((s, i) => (
-          <path key={s} d={ridge(s)} fill="none" stroke={i === 0 ? "var(--accent)" : "var(--contour-strong)"} strokeWidth={i === 0 ? 1.6 : 0.9} vectorEffect="non-scaling-stroke" />
+          <path key={s} d={ridge(s)} fill="none" stroke={i === 0 ? "url(#heatline)" : "rgba(255,91,31,0.16)"} strokeWidth={i === 0 ? 1.6 : 0.9} vectorEffect="non-scaling-stroke" />
         ))}
 
         {/* heat strip on the ground line */}
@@ -117,7 +122,7 @@ export function HunterMap({
                 y={ground - 4}
                 width={bw + 1}
                 height={18}
-                fill="var(--accent)"
+                fill={t > 0.6 ? "var(--heat)" : "var(--heat-2)"}
                 opacity={Math.min(1, 0.15 + t)}
                 className={t > 0.35 ? "shimmer" : undefined}
                 style={t > 0.35 ? { animationDelay: `${(i * 0.37) % 3}s` } : undefined}
@@ -132,7 +137,7 @@ export function HunterMap({
             y={0}
             width={bw}
             height={ground + 14}
-            fill={hover === i ? "var(--accent-soft)" : "transparent"}
+            fill={hover === i ? "var(--heat-soft)" : "transparent"}
             onMouseEnter={() => setHover(i)}
             onMouseLeave={() => setHover(null)}
           />
@@ -143,7 +148,7 @@ export function HunterMap({
           <g key={t}>
             <line x1={x(priceUsd * t)} x2={x(priceUsd * t)} y1={ground + 14} y2={ground + 20} stroke="var(--ink-3)" />
             <text x={x(priceUsd * t)} y={ground + 32} textAnchor="middle" className="num" fontSize="11" fill="var(--ink-3)">
-              {t === 1 ? "now" : `−${Math.round((1 - t) * 100)}%`}
+              {t === 1 ? "now" : `↓${Math.round((1 - t) * 100)}%`}
             </text>
           </g>
         ))}
@@ -163,11 +168,12 @@ export function HunterMap({
               </text>
             );
           const mx = x(m.price);
-          const col = m.tone === "you" ? "var(--good)" : "var(--ink)";
+          const col = "var(--cold)";
           return (
             <g key={i}>
               <line x1={mx} x2={mx} y1={30 + i * 18} y2={ground + 14} stroke={col} strokeDasharray="3 4" strokeWidth="1.2" />
-              <circle cx={mx} cy={ground + 5} r="5" fill="var(--paper)" stroke={col} strokeWidth="1.6" />
+              <circle cx={mx} cy={ground + 5} r="11" fill="var(--cold)" opacity="0.18" className="breathe" style={{ transformBox: "fill-box", transformOrigin: "center" }} />
+              <circle cx={mx} cy={ground + 5} r="5" fill="var(--cold)" stroke="var(--paper)" strokeWidth="1.6" />
               <text x={mx + 8} y={40 + i * 18} className="num" fontSize="11" fill={col}>
                 {m.label}
               </text>

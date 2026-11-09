@@ -1,14 +1,6 @@
-import type { Metadata } from "next";
-import { PositionView } from "./PositionView";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "Your view · Offmap" };
-
+/** Your loan now lives at the last step of /app. */
 export default function PositionPage() {
-  return (
-    <section className="gutter relative">
-      <div className="wrap pb-24">
-        <PositionView />
-      </div>
-    </section>
-  );
+  redirect("/app");
 }

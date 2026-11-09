@@ -1,28 +1,16 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { ErrorLine, NotLive, Row, Source } from "@/components/Bits";
+import { Details, ErrorLine, NotLive, Row, Source } from "@/components/Bits";
+import { Reveal } from "@/components/Reveal";
+import { loadWorld } from "@/lib/world";
 import { Statement } from "@/app/hunter/HunterView";
 import { agent, agentConfigured, publicCohorts, type AgentHealth, type LeakResp } from "@/lib/agent";
 import { AGENT_URL, COHORTS, CONTRACT_ID, basescanAddr, basescanTx, cohortById, nearblocksAddr } from "@/lib/config";
 import { ago, short, units } from "@/lib/format";
-import { contractState, view } from "@/lib/near";
+import { contractState, readStatement, view } from "@/lib/near";
 import { PROOFS } from "@/lib/proofs";
 import { useLive } from "@/lib/useLive";
-
-function Block({ n, title, children, aside }: { n: string; title: string; children: ReactNode; aside?: ReactNode }) {
-  return (
-    <div className="grid gap-6 rule-t py-10 md:grid-cols-[180px_1fr] md:gap-10">
-      <div>
-        <div className="num text-[13px] text-accent">({n})</div>
-        <h2 className="mt-2 font-serif text-[28px] leading-tight">{title}</h2>
-        {aside && <div className="mt-2 text-[13px] text-ink-3">{aside}</div>}
-      </div>
-      <div className="min-w-0">{children}</div>
-    </div>
-  );
-}
-
 
 function ContractBlock() {
   const st = useLive(() => contractState(), [], 60_000);
@@ -183,50 +171,179 @@ function LeakBlock() {
   );
 }
 
+type Tone = "pass" | "wait" | "fail" | "load";
+
+function Light({ tone }: { tone: Tone }) {
+  const cls = tone === "pass" ? "bg-cold shadow-[0_0_22px_var(--cold)]" : tone === "fail" ? "bg-heat-2 shadow-[0_0_22px_var(--heat-2)]" : tone === "wait" ? "bg-warn" : "bg-white/15 shimmer";
+  return (
+    <span className="relative grid h-12 w-12 flex-none place-items-center rounded-full ring-1 ring-white/10">
+      {tone === "pass" && <span className="absolute inset-0 rounded-full ring-1 ring-cold/60 pulse-ring" />}
+      <span className={`h-3.5 w-3.5 rounded-full ${cls}`} />
+    </span>
+  );
+}
+
+function Check({ id, n, title, plain, tone, verdict, children }: { id: string; n: string; title: string; plain: ReactNode; tone: Tone; verdict: ReactNode; children: ReactNode }) {
+  return (
+    <Reveal as="section">
+      <div id={id} className="scroll-mt-28 rule-t py-14 md:py-20">
+        <div className="grid gap-8 md:grid-cols-[90px_minmax(0,1fr)_minmax(0,1fr)] md:gap-10">
+          <div className="num text-[13px] text-cold">{n}</div>
+          <div>
+            <h2 className="wide text-[clamp(26px,3.2vw,42px)] font-semibold leading-[1.05]">{title}</h2>
+            <p className="mt-5 max-w-lg text-[17px] leading-relaxed text-ink-2">{plain}</p>
+          </div>
+          <div className="flex items-start gap-5">
+            <Light tone={tone} />
+            <div className="min-w-0 pt-1.5">
+              <div className={`text-[18px] leading-snug ${tone === "pass" ? "text-cold" : tone === "fail" ? "text-bad" : "text-ink"}`}>{verdict}</div>
+            </div>
+          </div>
+        </div>
+        <div className="md:ml-[130px]">
+          <Details label="See the data">{children}</Details>
+        </div>
+      </div>
+    </Reveal>
+  );
+}
+
+interface Verdict {
+  tone: Tone;
+  text: string;
+}
+
+function useContractCheck() {
+  return useLive<Verdict>(async () => {
+    const s = await contractState();
+    if (s.kind !== "live") return { tone: "fail", text: s.kind === "error" ? `Could not read ${CONTRACT_ID}.` : `${CONTRACT_ID} is not deployed.` };
+    if (s.fullAccessKeys > 0) return { tone: "wait", text: `${CONTRACT_ID} is live, but an owner key can still replace its code.` };
+    return { tone: "pass", text: `${CONTRACT_ID} is live on NEAR mainnet and nobody holds a key that can replace its code.` };
+  }, [], 60_000);
+}
+
+function useHardwareCheck() {
+  return useLive<Verdict>(async () => {
+    if (!agentConfigured) return { tone: "fail", text: "No agent is configured." };
+    const [h, agents] = await Promise.all([agent<AgentHealth>("/health"), view<{ account_id: string; validity: unknown }[]>("get_agents", {}).catch(() => [])]);
+    const valid = agents.filter((a) => a.validity === "Valid").length;
+    if (!h.tee) return { tone: "wait", text: "The agent answering now is not running in sealed hardware." };
+    return valid > 0
+      ? { tone: "pass", text: "The agent answers from Intel TDX, and the contract lists it as a valid, attested agent." }
+      : { tone: "wait", text: "The agent runs in Intel TDX, but the contract lists no valid agent right now." };
+  }, [], 60_000);
+}
+
+function useSolvencyCheck() {
+  return useLive<Verdict>(async () => {
+    const worlds = await Promise.all(COHORTS.map((c) => loadWorld(c)));
+    const pubs = worlds.flatMap((w) => w.positions.filter((p) => p.kind === "cohort" && p.published));
+    if (!pubs.length) return { tone: "wait", text: "The agent has not published pooled totals yet." };
+    const ok = pubs.every((p) => BigInt(p.published!.ledgerTotals.collateral) === p.pos.collateral);
+    const statements = await Promise.all(COHORTS.map((c) => readStatement(c.id).catch(() => null)));
+    const n = statements.filter(Boolean).length;
+    return ok
+      ? { tone: "pass", text: `The private ledger's collateral equals the Morpho positions on Base exactly. ${n} of ${COHORTS.length} markets have a statement on NEAR.` }
+      : { tone: "fail", text: "The private ledger and the Morpho position disagree right now." };
+  }, [], 60_000);
+}
+
+function useLeakCheck() {
+  return useLive<Verdict>(async () => {
+    if (!agentConfigured) return { tone: "wait", text: "Not published." };
+    const d = (await agent<LeakResp>("/public/leak")) as Record<string, unknown>;
+    if (typeof d.linkedFraction !== "number") return { tone: "wait", text: "The agent has not published a leak study yet." };
+    const deposits = typeof d.deposits === "number" ? d.deposits : null;
+    const small = deposits !== null && deposits < 20;
+    return {
+      tone: small ? "wait" : "pass",
+      text: `Published. ${(d.linkedFraction * 100).toFixed(0)}% of deposits could be linked to a payout${deposits !== null ? `, across ${deposits} deposit${deposits === 1 ? "" : "s"} studied` : ""}.${small ? " That sample is too small to promise privacy yet." : ""}`,
+    };
+  }, [], 120_000);
+}
+
+const verdictOf = (x: { data: Verdict | null; error: string | null }): Verdict =>
+  x.data ?? (x.error ? { tone: "fail", text: `Could not check: ${x.error}` } : { tone: "load", text: "Checking live…" });
+
 export function ProofSheet() {
+  const c = verdictOf(useContractCheck());
+  const h = verdictOf(useHardwareCheck());
+  const s = verdictOf(useSolvencyCheck());
+  const l = verdictOf(useLeakCheck());
+  const lights = [c, h, s, l];
+  const passing = lights.filter((x) => x.tone === "pass").length;
   return (
     <>
-      <Block n="01" title="The contract" aside="NEAR contract that only signs for an attested agent, and signs ejects for anyone.">
+      <div className="flex flex-wrap items-center gap-x-8 gap-y-4 pb-6">
+        <div className="flex gap-2">
+          {lights.map((x, i) => (
+            <span key={i} className={`h-2 w-10 rounded-full transition-colors duration-700 ${x.tone === "pass" ? "bg-cold shadow-[0_0_12px_var(--cold)]" : x.tone === "fail" ? "bg-heat-2" : x.tone === "wait" ? "bg-warn" : "bg-white/10 shimmer"}`} />
+          ))}
+        </div>
+        <span className="num text-[13px] text-ink-2">{lights.some((x) => x.tone === "load") ? "Running the checks live…" : `${passing} of ${lights.length} checks passing right now`}</span>
+      </div>
+
+      <Check id="contract" n="01" title="The contract cannot be swapped." plain={<>The NEAR contract decides who may sign for the pooled positions, and it signs your eject. If nobody holds a full key, nobody can quietly change those rules.</>} tone={c.tone} verdict={c.text}>
         <ContractBlock />
-      </Block>
-      <Block n="02" title="Sealed hardware" aside="Intel TDX attestation of the running agent.">
+      </Check>
+      <Check id="hardware" n="02" title="The agent runs in sealed hardware." plain={<>Your ledger lives inside an Intel TDX machine. The contract only accepts an agent whose hardware report matches the approved code. Anyone can fetch that report.</>} tone={h.tone} verdict={h.text}>
         <AttestationBlock />
-      </Block>
-      <Block n="03" title="Solvency statements" aside="Cohort totals, reserve and the salted Merkle root, per batch.">
+      </Check>
+      <Check id="solvency" n="03" title="The books match the chain." plain={<>After every batch the agent publishes pooled totals and writes a statement to NEAR. Here they are held up against the real Morpho positions on Base.</>} tone={s.tone} verdict={s.text}>
         <div className="grid gap-10 md:grid-cols-2">
-          {COHORTS.map((c) => (
-            <div key={c.id}>
-              <div className="eyebrow mb-2">{c.label}</div>
-              <Statement c={c} />
+          {COHORTS.map((k) => (
+            <div key={k.id}>
+              <div className="eyebrow mb-2">{k.label}</div>
+              <Statement c={k} />
             </div>
           ))}
         </div>
         <LedgerBlock />
-      </Block>
-      <Block n="04" title="Leak study and level attack" aside="How linkable is Offmap traffic, measured on itself.">
+      </Check>
+      <Check id="leak" n="04" title="We measure our own leaks." plain={<>We run the tricks a snoop would use on our own deposits and payouts, from public chain data only, and publish what they find.</>} tone={l.tone} verdict={l.text}>
         <LeakBlock />
-      </Block>
-      <Block n="05" title="Runs already on chain" aside="The spikes the product stands on.">
-        {PROOFS.map((p) => (
-          <div key={p.id} className="rule-t py-5 first:border-t-0 first:pt-0">
-            <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-              <span className="num text-[13px] text-accent">{p.id}</span>
-              <span className="font-serif text-[21px]">{p.title}</span>
-              <span className="num text-[12px] text-good">{p.result}</span>
-            </div>
-            <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1">
-              {p.links.map((l) => (
-                <a key={l.href} className="num ink-link text-[13px]" href={l.href} target="_blank" rel="noreferrer">
-                  {l.label} ↗
-                </a>
-              ))}
-              <a className="num ink-link text-[13px] text-ink-3" href={p.doc} target="_blank" rel="noreferrer">
-                write up ↗
-              </a>
+      </Check>
+
+      <Reveal as="section">
+        <div id="runs" className="scroll-mt-28 rule-t py-14 md:py-20">
+          <div className="grid gap-8 md:grid-cols-[90px_minmax(0,1fr)] md:gap-10">
+            <div className="num text-[13px] text-cold">05</div>
+            <div>
+              <h2 className="wide text-[clamp(26px,3.2vw,42px)] font-semibold leading-[1.05]">Already run on chain.</h2>
+              <p className="mt-5 max-w-2xl text-[17px] leading-relaxed text-ink-2">Every piece Offmap stands on was run for real first. Each run links to its transactions.</p>
+              <div className="mt-10">
+                {PROOFS.map((p) => (
+                  <details key={p.id} className="group rule-t">
+                    <summary className="flex min-h-16 items-center justify-between gap-6 py-5">
+                      <span className="flex items-baseline gap-4">
+                        <span className="num text-[12px] text-ink-3">{p.id}</span>
+                        <span className="text-[18px] text-ink">{p.title}</span>
+                      </span>
+                      <span className="num hidden text-[12px] text-cold sm:block">{p.result}</span>
+                    </summary>
+                    <div className="pb-8 sm:pl-10">
+                      <p className="max-w-2xl text-[15px] text-ink-2">{p.what}</p>
+                      <div className="num mt-3 text-[11px] uppercase tracking-[0.12em] text-ink-3">
+                        {p.network} · {p.date}
+                      </div>
+                      <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2">
+                        {p.links.map((x) => (
+                          <a key={x.href} className="num ink-link text-[13px]" href={x.href} target="_blank" rel="noreferrer">
+                            {x.label} ↗
+                          </a>
+                        ))}
+                        <a className="num ink-link text-[13px] text-ink-3" href={p.doc} target="_blank" rel="noreferrer">
+                          write up ↗
+                        </a>
+                      </div>
+                    </div>
+                  </details>
+                ))}
+              </div>
             </div>
           </div>
-        ))}
-      </Block>
+        </div>
+      </Reveal>
     </>
   );
 }

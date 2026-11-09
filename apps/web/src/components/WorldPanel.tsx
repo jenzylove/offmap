@@ -31,7 +31,7 @@ export function PositionLines({ c, p }: { c: CohortDef; p: WorldPosition }) {
     <div className="rule-t py-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div className="flex items-center gap-2 text-[14px]">
-          <span className={p.kind === "spike" ? "dot dot-off" : "dot dot-hot"} />
+          <span className={p.kind === "spike" ? "dot dot-off" : "dot dot-cold"} />
           <span className="text-ink">{p.label}</span>
         </div>
         <a className="num ink-link text-[12px] text-ink-2" href={basescanAddr(p.pos.address)} target="_blank" rel="noreferrer">
