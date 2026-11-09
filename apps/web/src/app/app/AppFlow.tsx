@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { SignMessage } from "@/components/SignMessage";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { ErrorLine } from "@/components/Bits";
 import { borrowStage, DepositPanel, useOneClick, type Stage } from "@/components/DepositPanel";
@@ -221,7 +222,7 @@ export function AppFlow() {
           </div>
           <div className="mt-5 rule-t pt-5">
             <div className="eyebrow">Your wallet will show</div>
-            <div className="num mt-2 text-[13px] text-ink-2">offmap:auth:&lt;random nonce&gt;:&lt;expiry time&gt;</div>
+            <SignMessage className="mt-2" />
           </div>
           <div className="mt-6 flex flex-wrap gap-3">
             <button className="btn btn-primary" disabled={s.busy || !agentConfigured} onClick={() => void s.signInEvm()} data-testid="sign-in">

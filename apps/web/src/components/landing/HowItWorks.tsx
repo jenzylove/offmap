@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useFocusIndex } from "@/components/Reveal";
+import { SignMessage } from "@/components/SignMessage";
 
 const STEPS: { t: string; d: string; tag: string; visual: () => ReactNode }[] = [
   {
@@ -80,15 +81,13 @@ function SignVisual() {
           <span className="eyebrow">Signature request</span>
           <span className="num text-[10px] text-cold">0 gas</span>
         </div>
-        <div className="num mt-4 rounded-xl bg-black/40 p-4 text-[12px] leading-relaxed text-ink-2">
-          offmap:auth:<span className="text-ink">&lt;nonce&gt;</span>:<span className="text-ink">&lt;deadline&gt;</span>
-        </div>
+        <SignMessage className="mt-4 rounded-xl bg-black/40 p-4" />
         <div className="mt-4 grid grid-cols-2 gap-2">
           <span className="num rounded-full py-2 text-center text-[11px] uppercase tracking-[0.1em] text-ink-3 ring-1 ring-white/10">Cancel</span>
           <span className="num rounded-full bg-cold py-2 text-center text-[11px] uppercase tracking-[0.1em] text-[var(--accent-ink)]">Sign</span>
         </div>
       </div>
-      <p className="mt-5 text-center text-[13px] text-ink-3">The exact message your wallet shows. Nothing else is asked.</p>
+      <p className="mt-5 text-center text-[13px] text-ink-3">What your wallet shows. A signature, not a transaction: no gas, nothing moves.</p>
     </div>
   );
 }

@@ -8,6 +8,8 @@ import { pct, short, toUnits, usd } from "@/lib/format";
 import { readLevels } from "@/lib/morpho";
 import { addressLooksValid, CHAIN_NAMES, collateralAssets, usdcTargets, type OneClickToken } from "@/lib/oneclick";
 import { useLive } from "@/lib/useLive";
+import { loadWorld } from "@/lib/world";
+import { basescanAddr } from "@/lib/config";
 
 const chainName = (c: string) => CHAIN_NAMES[c] ?? c.toUpperCase();
 const isEvmChain = (c: string) => ["eth", "base", "arb", "op", "pol", "avax", "bsc", "gnosis"].includes(c);
@@ -26,6 +28,7 @@ export interface StartedDeposit extends BorrowQuoteResp {
 export function BorrowSetup({ token, wallet, tokens, tokensError, onStarted }: { token: string; wallet: string; tokens: OneClickToken[]; tokensError: string | null; onStarted: (d: StartedDeposit) => void }) {
   const [cohort, setCohort] = useState<CohortDef>(COHORTS[0]!);
   const market = useLive(() => readLevels(cohort, 1), [cohort.id], 120_000);
+  const world = useLive(() => loadWorld(cohort), [cohort.id], 60_000);
   const prices = useLive(() => Promise.all(COHORTS.map((c) => readLevels(c, 1).then((m) => m.priceUsd))), [], 300_000);
 
   const all = useMemo(() => collateralAssets(tokens), [tokens]);
@@ -278,9 +281,9 @@ export function BorrowSetup({ token, wallet, tokens, tokensError, onStarted }: {
             </p>
             <dl className="num mt-6 text-[13px]">
               {[
-                ["Collateral value", value ? usd(value) : "n/a"],
-                ["You borrow", b > 0 ? `${usd(b, 2)} USDC` : "n/a"],
-                ["Loan to value", ltv ? pct(ltv) : "n/a"],
+                ["Collateral value", value ? usd(value) : "enter an amount"],
+                ["You borrow", b > 0 ? `${usd(b, 2)} USDC` : "enter an amount"],
+                ["Loan to value", ltv ? pct(ltv) : "after amounts"],
                 ["Rate a year", rate !== null ? pct(rate, 2) : "…"],
               ].map(([k, v]) => (
                 <div key={k} className="flex items-baseline justify-between gap-4 rule-t py-2.5">
@@ -302,7 +305,47 @@ export function BorrowSetup({ token, wallet, tokens, tokensError, onStarted }: {
             {err && <ErrorLine>The agent refused: {err}</ErrorLine>}
           </div>
         </div>
+        <PublicRecord pool={world.data?.positions.find((p) => p.kind === "cohort")?.pos ?? null} loading={!world.data} wallet={wallet} addValue={value} addDebt={b > 0 ? b : 0} />
       </aside>
+    </div>
+  );
+}
+
+/** The other half of the setup: what anyone reading Morpho will see once this loan lands. */
+function PublicRecord({ pool, loading, wallet, addValue, addDebt }: { pool: { address: string; collateralUsd: number; debtUsd: number } | null; loading: boolean; wallet: string; addValue: number; addDebt: number }) {
+  const row = (k: string, now: number, add: number) => (
+    <div key={k} className="flex items-baseline justify-between gap-4 rule-t py-2.5">
+      <dt className="font-sans text-[13px] text-ink-2">{k}</dt>
+      <dd className="text-ink">
+        {usd(now, 0)}
+        {add > 0 && <span className="text-heat"> → {usd(now + add, 0)}</span>}
+      </dd>
+    </div>
+  );
+  return (
+    <div className="mt-4 rounded-[28px] p-7 ring-1 ring-white/10" data-testid="public-record">
+      <div className="eyebrow">What Morpho will show, live from Base</div>
+      {pool ? (
+        <>
+          <p className="mt-3 text-[13px] leading-relaxed text-ink-2">
+            Your loan is added inside one shared borrower. Only the attested agent can sign for it, and only inside a batch the NEAR contract opens.
+          </p>
+          <div className="num mt-4 flex items-center justify-between gap-3 text-[13px]">
+            <span className="font-sans text-ink-2">Borrower on record</span>
+            <a className="text-cold underline decoration-white/20 underline-offset-4" href={basescanAddr(pool.address)} target="_blank" rel="noreferrer">{short(pool.address, 6, 4)} · Offmap pool</a>
+          </div>
+          <dl className="num mt-3 text-[13px]">
+            {row("Pool collateral", pool.collateralUsd, addValue)}
+            {row("Pool debt", pool.debtUsd, addDebt)}
+            <div className="flex items-baseline justify-between gap-4 rule-t py-2.5">
+              <dt className="font-sans text-[13px] text-ink-2">Your wallet {short(wallet, 6, 4)}</dt>
+              <dd className="text-cold">never appears</dd>
+            </div>
+          </dl>
+        </>
+      ) : (
+        <p className="mt-3 text-[13px] text-ink-3">{loading ? "Reading the pool's position from Morpho…" : "The pool's position could not be read right now."}</p>
+      )}
     </div>
   );
 }
