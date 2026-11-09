@@ -54,6 +54,11 @@ for (const c of cfg.cohorts) {
   const s = stmt.statement;
   check(`${c.id}: statement collateral equals Morpho collateral at ${addr.slice(0, 8)}...`, BigInt(s.total_collateral) === collateral, `${s.total_collateral} vs ${collateral}`);
   check(`${c.id}: statement carries a salted Merkle root and padded leaf count`, /^0x[0-9a-f]{64}$/.test(s.merkle_root) && s.leaf_count >= 1024, `root ${s.merkle_root.slice(0, 12)}..., ${s.leaf_count} leaves`);
+  // Eject takes collateral out of the cohort through the helper: Morpho needs the cohort to have authorized it.
+  if (collateral > 0n) {
+    const auth = await ethCall(MORPHO, "0x65e4ad9e" + addr.slice(2).toLowerCase().padStart(64, "0") + c.eject_helper.slice(2).toLowerCase().padStart(64, "0"));
+    check(`${c.id}: cohort has authorized the EjectHelper on Morpho, so eject works without the agent`, BigInt(auth) === 1n);
+  }
 }
 
 // 5. The eject helper exists on Base with code.

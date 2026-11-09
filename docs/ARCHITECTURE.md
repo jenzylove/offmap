@@ -41,7 +41,7 @@ contracts/base  EjectHelper (immutable)  ◄── eject tx ──────�
 
 ## Contract `offmapfi.near` (contracts/near)
 
-State: config (immutable after init), agent registry, per cohort latest `Statement`, eject queue, recovery timer.
+State: config (changeable only by the contract account itself through set_config, while it holds a key), agent registry, per cohort latest `Statement`, eject queue, recovery timer.
 
 | Method | Who | Does |
 |---|---|---|

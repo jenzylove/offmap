@@ -1,6 +1,7 @@
 //! offmap.near: accepts solvency statements from an attested agent, gates chain signatures for the
 //! cohort accounts on Base, and lets any user eject their share with a Merkle proof, agent or not.
-//! No owner and no upgrade path: everything that matters is fixed at init.
+//! The contract account itself can replace the config (set_config) while it holds a full access key;
+//! once that key is deleted nothing can change.
 
 use near_sdk::json_types::{U128, U64};
 use near_sdk::serde_json::{self, json};

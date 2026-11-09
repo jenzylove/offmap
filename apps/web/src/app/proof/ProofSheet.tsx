@@ -186,7 +186,7 @@ function LeakBlock() {
 export function ProofSheet() {
   return (
     <>
-      <Block n="01" title="The contract" aside="Keyless NEAR contract that guards every signature.">
+      <Block n="01" title="The contract" aside="NEAR contract that only signs for an attested agent, and signs ejects for anyone.">
         <ContractBlock />
       </Block>
       <Block n="02" title="Sealed hardware" aside="Intel TDX attestation of the running agent.">

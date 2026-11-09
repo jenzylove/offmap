@@ -184,7 +184,7 @@ Every number on the site is read live or links to its source. No staged states, 
 3. **Cohort positions are public.** Their total size and health are visible by design; individual loans are not.
 4. **Losses can be shared inside a cohort** once the reserve is exhausted. The waterfall is shown before every borrow.
 5. **A few markets at launch.** One Morpho market per cohort on Base.
-6. **Not a mixer.** Deposits are screened against public sanctions lists.
+6. **Not a mixer.** Planned before any cap is raised: screening deposits against public sanctions lists.
 7. **Unaudited hackathon build.** Loan and cohort caps are enforced in code and shown on the site.
 
 ## 11. Judge path (no TEE needed)

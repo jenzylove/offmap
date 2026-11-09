@@ -10,6 +10,7 @@ import { cohortPrice } from "./prices.js";
 import { login, session } from "./auth.js";
 import { risk, engineErrors } from "./engine.js";
 import { save, type State } from "./store.js";
+import { frozen } from "./ejects.js";
 import type { Identity } from "./identity.js";
 
 const big = (v: unknown) => JSON.parse(JSON.stringify(v, (_k, x) => (typeof x === "bigint" ? x.toString() : x)));
@@ -78,6 +79,7 @@ export function app(id: Identity, s: State) {
     const b = await c.req.json();
     const k = cohort(b.cohort);
     if (!["borrow", "withdraw"].includes(b.kind)) throw new Error("kind must be borrow or withdraw");
+    if (frozen(s, k.id).has(u.userId)) throw new Error("your eject is in progress in this cohort");
     s.requests.push({ id: randomUUID(), kind: b.kind, userId: u.userId, cohortId: k.id, amount: String(BigInt(b.amount)), receive: { asset: b.receiveAsset, address: b.receiveAddress }, createdAt: Date.now(), status: "queued" });
     save(s);
     return c.json({ queued: true, nextBatchWithinSeconds: config.batchSeconds });

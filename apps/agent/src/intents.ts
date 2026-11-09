@@ -103,12 +103,13 @@ export async function quoteIntoConfidential(id: Identity, a: { originAsset: stri
 }
 
 /** Spend from the confidential balance to an address on another chain (or swap inside it), signed intent execution. */
-export async function payFromConfidential(id: Identity, a: { asset: string; amount: string; destinationAsset: string; recipient: string; recipientType?: "DESTINATION_CHAIN" | "CONFIDENTIAL_INTENTS" }) {
+export async function payFromConfidential(id: Identity, a: { asset: string; amount: string; destinationAsset: string; recipient: string; recipientType?: "DESTINATION_CHAIN" | "CONFIDENTIAL_INTENTS"; beforeSubmit?: (q: Quote) => void }) {
   const { quote } = await api<{ quote: Quote }>("/v0/quote", {
     dry: false, swapType: "EXACT_INPUT", slippageTolerance: 100, originAsset: a.asset, depositType: "CONFIDENTIAL_INTENTS",
     destinationAsset: a.destinationAsset, amount: a.amount, refundTo: id.intentsSigner, refundType: "CONFIDENTIAL_INTENTS",
     recipient: a.recipient, recipientType: a.recipientType ?? "DESTINATION_CHAIN", deadline: deadline(),
   });
+  a.beforeSubmit?.(quote);
   const gen = await api<{ intent: { payload: Nep413Payload } }>("/v0/generate-intent", { type: "swap_transfer", standard: "nep413", signerId: id.intentsSigner, depositAddress: quote.depositAddress });
   const sub = await api<{ intentHash: string }>("/v0/submit-intent", { type: "swap_transfer", signedData: signNep413(id, gen.intent.payload) });
   return { quote, intentHash: sub.intentHash };

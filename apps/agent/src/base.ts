@@ -22,6 +22,8 @@ export const abi = parseAbi([
   "function transfer(address,uint256) returns (bool)",
   "function balanceOf(address) view returns (uint256)",
   "function price() view returns (uint256)",
+  "function isAuthorized(address,address) view returns (bool)",
+  "function setAuthorization(address,bool)",
 ]);
 
 // v1.signer mainnet root key, as published in chainsig.js (constants.ROOT_PUBLIC_KEYS.MAINNET.secp256k1).
@@ -49,9 +51,24 @@ export async function position(c: CohortConfig, who: Address) {
   return { supplyShares, borrowShares, collateral, debt };
 }
 
+/** Signed ejects waiting for their nonce, per cohort (filled by ejects.ts). */
+export const ejectQueue = new Map<string, { nonce: number; signedTx: Hex }[]>();
+
+/** Broadcast a contract signed eject and wait for it. Anyone may do this; the agent does it so an exit is never raced. */
+export async function landEject(signedTx: Hex) {
+  try {
+    const hash = await client.sendRawTransaction({ serializedTransaction: signedTx }).catch(() => keccak256(signedTx));
+    return await client.waitForTransactionReceipt({ hash, timeout: 120_000 });
+  } catch { return null; }
+}
+
 /** Prepare, MPC sign through the identity (offmap.near in production), broadcast, wait. */
 export async function send(id: Identity, cohortId: string, tx: { to: Address; data?: Hex; value?: bigint }) {
   const from = cohortAddress(id.mpcPredecessor, cohortId);
+  // A signed eject at the next nonce goes first: the agent never takes a user's exit nonce.
+  for (const e of [...(ejectQueue.get(cohortId) ?? [])].sort((a, b) => a.nonce - b.nonce)) {
+    if (e.nonce === (await client.getTransactionCount({ address: from, blockTag: "pending" }))) await landEject(e.signedTx);
+  }
   const [nonce, fees, gas] = await Promise.all([
     client.getTransactionCount({ address: from, blockTag: "pending" }),
     client.estimateFeesPerGas(),
@@ -92,6 +109,13 @@ export async function withdraw(id: Identity, c: CohortConfig, amount: bigint) {
 }
 export async function transfer(id: Identity, c: CohortConfig, token: Address, to: Address, amount: bigint) {
   return send(id, c.id, { to: token, data: call("transfer", [to, amount]) });
+}
+export const helperIsAuthorized = (cohort: Address, helper: Address) => client.readContract({ address: MORPHO, abi, functionName: "isAuthorized", args: [cohort, helper] });
+/** Morpho needs the cohort to authorize the eject helper once, or every eject reverts on withdrawCollateral. */
+export async function authorizeHelper(id: Identity, c: CohortConfig, helper: Address) {
+  const me = cohortAddress(id.mpcPredecessor, c.id);
+  if (await client.readContract({ address: MORPHO, abi, functionName: "isAuthorized", args: [me, helper] })) return [];
+  return [await send(id, c.id, { to: MORPHO, data: call("setAuthorization", [helper, true]) })];
 }
 export const erc20Balance = (token: Address, who: Address) => client.readContract({ address: token, abi, functionName: "balanceOf", args: [who] });
 export const ethBalance = (who: Address) => client.getBalance({ address: who });

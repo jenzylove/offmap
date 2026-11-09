@@ -30,17 +30,17 @@ const ROUTE = [
   {
     k: "E",
     t: "Eject whenever you want",
-    d: "Your latest note moves your share into a Morpho position at your own wallet, in one transaction, through the contract. It works even if the agent is down. You give up privacy, never your money.",
+    d: "Your latest note moves your share into a Morpho position at your own wallet, in one transaction, through the contract. It works even if the agent is down. You give up privacy to get out, and you never need anyone's permission.",
   },
 ];
 
 const TRUST = [
-  ["Sealed hardware for privacy, not for your money", "Privacy relies on the agent running in sealed hardware. Getting your money out does not: eject works through the contract without the agent."],
+  ["You trust the sealed agent while it runs", "The agent in sealed hardware runs the pooled positions and holds the private balance, so while it is up you rely on that hardware and its approved code. If it stops, eject works through the contract without it."],
+  ["The operator can ship new code", "Agent updates go through the hosting dashboard and keep the same keys. Every update changes the attested code hash, and the proof page and the judge checks compare it with the one approved on chain, so a swap shows up in public."],
   ["Privacy grows with volume", "With few users, the crowd you hide in is small. The leak study on the proof page shows the real number, not a promise."],
   ["Cohort positions are public", "Each pooled position's total size and health are visible by design. Individual loans inside it are not."],
   ["Losses can be shared inside a cohort", "If a private liquidation cannot cover a loan, the gap comes from that borrower first, then the cohort reserve, then pro rata inside that cohort only. Other cohorts are never touched. You see this before every borrow."],
   ["Few markets at launch", "One Morpho market per cohort on Base: cbBTC/USDC and WETH/USDC."],
-  ["Not a mixer", "Deposits are screened against public sanctions lists."],
   ["Unaudited hackathon build", "Per loan and per cohort caps are enforced in code and shown on the site. Borrow only what you are willing to test with."],
 ];
 
@@ -51,7 +51,7 @@ const FAQ = [
   ["What does it cost?", "Morpho's live borrow rate plus 1% a year. The 1% funds the cohort reserve that absorbs losses before anyone else does. The full rate shows before you borrow."],
   ["What if Offmap disappears?", "Eject. Paste your latest note, sign two Morpho authorizations with your own wallet, and the NEAR contract moves your share into a Morpho position you own. No agent needed."],
   ["Can I check the numbers myself?", "Yes. The proof page links every statement, the contract and the real mainnet transactions. Your note's Merkle proof checks against the root stored on NEAR, right in your browser."],
-  ["Is it live?", "Yes, on mainnet with small amounts. The first private loan ran end to end: a deposit from NEAR, a pooled Morpho position on Base, and a payout to the borrower's own wallet after a random delay (see Proof). The agent is not yet running in sealed hardware and the NEAR contract is not deployed yet; the pages that depend on them say so plainly. Nothing on this site is simulated."],
+  ["Is it live?", "Yes, on mainnet with small amounts. The first private loan ran end to end: a deposit from NEAR, a pooled Morpho position on Base, and a payout to the borrower's own wallet after a random delay (see Proof). The agent runs in Intel TDX on Phala and the contract offmapfi.near only signs for an agent whose attestation it checked. Nothing on this site is simulated."],
 ];
 
 export default function Home() {

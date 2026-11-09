@@ -23,7 +23,8 @@ export interface Pending {
 }
 export interface Receive { asset: string; address: string }
 export interface Request { id: string; kind: "borrow" | "withdraw"; userId: string; cohortId: string; amount: string; receive: Receive; createdAt: number; status: "queued" | "applied" | "rejected"; reason?: string }
-export interface Payout { id: string; userId: string; asset: string; amount: string; destinationAsset: string; recipient: string; notBefore: number; status: "queued" | "sent" | "done" | "failed"; deposit?: string; tx?: string; tries?: number }
+export interface Payout { id: string; userId: string; asset: string; amount: string; destinationAsset: string; recipient: string; notBefore: number; status: "queued" | "sent" | "done" | "failed"; deposit?: string; tx?: string; tries?: number; sentAt?: number }
+export interface EjectWatch { leafHash: string; userId: string; user: string; nonce: number; signedTx: `0x${string}`; hash: `0x${string}`; status: "pending" | "landed" | "failed"; at: number }
 export interface BatchLog { batchId: string; cohortId: string; at: number; txs: string[]; statementTx?: string; delta: { collateral: string; debt: string }; usersChanged?: number }
 
 export interface State {
@@ -36,6 +37,8 @@ export interface State {
   /** userId -> EVM address that owns the position (eject destination). */
   owners: Record<string, string>;
   batches: BatchLog[];
+  /** Ejects signed by the contract, per cohort: how many records were read, and their state. */
+  ejects?: Record<string, { seen: number; list: EjectWatch[] }>;
 }
 
 export function freshState(): State {
