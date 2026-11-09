@@ -98,6 +98,7 @@ fn with_statement() -> Contract {
     let mut c = setup();
     ctx(agent_id(), T0, NearToken::from_yoctonear(0));
     c.submit_statement(stmt(1, T0));
+    ctx("relayer.testnet".parse().unwrap(), T0 + 1, EJECT_DEPOSIT);
     c
 }
 
@@ -266,7 +267,9 @@ fn expired_agent_cannot_submit() {
 
 #[test]
 fn statement_is_stored_with_event() {
-    let c = with_statement();
+    let mut c = setup();
+    ctx(agent_id(), T0, NearToken::from_yoctonear(0));
+    c.submit_statement(stmt(1, T0));
     assert!(get_logs().iter().any(|l| l.starts_with("EVENT_JSON:") && l.contains("\"event\":\"statement\"")));
     let s = c.statement("cbbtc-usdc".into()).unwrap();
     assert_eq!(s.statement.collateral_value_loan, from::<Statement>(&fx()["statement"]).collateral_value_loan);
@@ -277,6 +280,7 @@ fn statement_is_stored_with_event() {
 #[should_panic(expected = "batch_id must increase")]
 fn batch_must_increase() {
     let mut c = with_statement();
+    ctx(agent_id(), T0, NearToken::from_yoctonear(0));
     c.submit_statement(stmt(1, T0));
 }
 
@@ -334,6 +338,7 @@ fn leaf_count_must_be_padded() {
 fn request_signature_calls_mpc_with_cohort_path() {
     let mut c = with_statement();
     ctx(agent_id(), T0 + 10, NearToken::from_yoctonear(0));
+    c.begin_batch("cbbtc-usdc".into());
     c.request_signature("cbbtc-usdc".into(), format!("0x{}", "11".repeat(32)));
     let cs = calls();
     let (to, method, args, dep) = &cs[0];
@@ -399,7 +404,7 @@ fn eject_encoding_matches_viem() {
 #[test]
 fn eject_marks_leaf_and_requests_mpc_signature() {
     let mut c = with_statement();
-    ctx("relayer.testnet".parse().unwrap(), T0 + 5, NearToken::from_yoctonear(0));
+    ctx("relayer.testnet".parse().unwrap(), T0 + 5, EJECT_DEPOSIT);
     c.eject("cbbtc-usdc".into(), leaf(), proof(), args());
     let lh = fx()["leaf_hash"].as_str().unwrap().to_string();
     assert!(c.ejected(lh.clone()));
@@ -446,13 +451,13 @@ fn eject_callback_returns_signed_tx() {
 fn failed_signature_releases_the_leaf() {
     let mut c = with_statement();
     let p = prepared(&c);
-    ctx("relayer.testnet".parse().unwrap(), T0 + 5, NearToken::from_yoctonear(0));
+    ctx("relayer.testnet".parse().unwrap(), T0 + 5, EJECT_DEPOSIT);
     c.eject("cbbtc-usdc".into(), leaf(), proof(), args());
     let out = eject_callback(&mut c, p, Err(PromiseError::Failed));
     assert!(out.signature.is_none());
     assert!(!c.ejected(fx()["leaf_hash"].as_str().unwrap().into()));
     // and the user can try again
-    ctx("relayer.testnet".parse().unwrap(), T0 + 7, NearToken::from_yoctonear(0));
+    ctx("relayer.testnet".parse().unwrap(), T0 + 7, EJECT_DEPOSIT);
     c.eject("cbbtc-usdc".into(), leaf(), proof(), args());
 }
 
@@ -460,7 +465,7 @@ fn failed_signature_releases_the_leaf() {
 #[should_panic(expected = "leaf already ejected")]
 fn double_eject_refused() {
     let mut c = with_statement();
-    ctx("relayer.testnet".parse().unwrap(), T0 + 5, NearToken::from_yoctonear(0));
+    ctx("relayer.testnet".parse().unwrap(), T0 + 5, EJECT_DEPOSIT);
     c.eject("cbbtc-usdc".into(), leaf(), proof(), args());
     c.eject("cbbtc-usdc".into(), leaf(), proof(), args());
 }
@@ -469,7 +474,7 @@ fn double_eject_refused() {
 #[should_panic(expected = "user already ejected")]
 fn same_user_new_leaf_refused_until_next_statement() {
     let mut c = with_statement();
-    ctx("relayer.testnet".parse().unwrap(), T0 + 5, NearToken::from_yoctonear(0));
+    ctx("relayer.testnet".parse().unwrap(), T0 + 5, EJECT_DEPOSIT);
     c.eject("cbbtc-usdc".into(), leaf(), proof(), args());
     // Pretend the leaf mark is gone (a new note for the same user against the same root).
     c.ejected_leaves.remove(&fx()["leaf_hash"].as_str().unwrap().to_string());
@@ -603,7 +608,7 @@ fn recovery_closes_statements() {
 #[test]
 fn eject_works_in_recovery() {
     let mut c = recovered();
-    ctx("relayer.testnet".parse().unwrap(), T0 + RECOVERY + 2, NearToken::from_yoctonear(0));
+    ctx("relayer.testnet".parse().unwrap(), T0 + RECOVERY + 2, EJECT_DEPOSIT);
     c.eject("cbbtc-usdc".into(), leaf(), proof(), args());
     assert_eq!(calls()[0].1, "sign");
 }
@@ -620,15 +625,209 @@ fn init_checks_market_id() {
 
 #[test]
 #[should_panic(expected = "only the contract account itself")]
-fn set_config_refused_for_anyone_but_the_contract_account() {
+fn propose_config_refused_for_anyone_but_the_contract_account() {
     let mut c = setup();
     ctx(agent_id(), T0, NearToken::from_yoctonear(0));
-    c.set_config(config(true));
+    c.propose_config(config(true));
 }
 
 #[test]
-fn set_config_by_the_contract_account_itself() {
+#[should_panic(expected = "notice period has not passed")]
+fn config_cannot_apply_before_the_notice_period() {
     let mut c = setup();
     ctx(deployer(), T0, NearToken::from_yoctonear(0));
-    c.set_config(config(true));
+    c.propose_config(config(true));
+    ctx("anyone.testnet".parse().unwrap(), T0 + CONFIG_DELAY_MS - 1, NearToken::from_yoctonear(0));
+    c.apply_config();
+}
+
+#[test]
+fn config_applies_after_the_notice_period_by_anyone() {
+    let mut c = setup();
+    ctx(deployer(), T0, NearToken::from_yoctonear(0));
+    let mut cfg = config(true);
+    cfg.recovery_delay_ms = U64(RECOVERY + 1);
+    c.propose_config(cfg);
+    assert!(c.pending_config().is_some());
+    ctx("anyone.testnet".parse().unwrap(), T0 + CONFIG_DELAY_MS, NearToken::from_yoctonear(0));
+    c.apply_config();
+    assert_eq!(c.config().recovery_delay_ms.0, RECOVERY + 1);
+    assert!(c.pending_config().is_none());
+}
+
+#[test]
+#[should_panic(expected = "market_id does not match")]
+fn proposed_config_gets_the_init_checks() {
+    let mut c = setup();
+    ctx(deployer(), T0, NearToken::from_yoctonear(0));
+    let mut cfg = config(true);
+    cfg.cohorts[0].lltv = U128(1);
+    c.propose_config(cfg);
+}
+
+#[test]
+#[should_panic(expected = "only the contract account itself")]
+fn sweep_only_by_the_contract_account() {
+    let mut c = setup();
+    ctx(agent_id(), T0, NearToken::from_yoctonear(0));
+    c.sweep();
+}
+
+#[test]
+#[should_panic(expected = "a cohort still holds positions")]
+fn wind_down_refused_while_a_cohort_holds_positions() {
+    let mut c = with_statement();
+    ctx(deployer(), T0, NearToken::from_yoctonear(0));
+    c.announce_wind_down(to_hex(&env::sha256_array(&[0, 97, 115, 109])));
+    ctx(deployer(), T0 + WIND_DOWN_DELAY_MS, NearToken::from_yoctonear(0));
+    c.wind_down(near_sdk::json_types::Base64VecU8(vec![0, 97, 115, 109]));
+}
+
+// ---------------- batch lock ----------------
+
+#[test]
+#[should_panic(expected = "open a batch first")]
+fn agent_cannot_sign_outside_a_batch() {
+    let mut c = with_statement();
+    ctx(agent_id(), T0 + 10, NearToken::from_yoctonear(0));
+    c.request_signature("cbbtc-usdc".into(), format!("0x{}", "11".repeat(32)));
+}
+
+#[test]
+#[should_panic(expected = "a batch is open for this cohort")]
+fn eject_refused_while_a_batch_is_open() {
+    let mut c = with_statement();
+    ctx(agent_id(), T0 + 10, NearToken::from_yoctonear(0));
+    c.begin_batch("cbbtc-usdc".into());
+    ctx("relayer.testnet".parse().unwrap(), T0 + 20, EJECT_DEPOSIT);
+    c.eject("cbbtc-usdc".into(), leaf(), proof(), args());
+}
+
+#[test]
+fn eject_opens_when_the_batch_ends() {
+    let mut c = with_statement();
+    ctx(agent_id(), T0 + 10, NearToken::from_yoctonear(0));
+    c.begin_batch("cbbtc-usdc".into());
+    c.end_batch("cbbtc-usdc".into());
+    ctx("relayer.testnet".parse().unwrap(), T0 + 20, EJECT_DEPOSIT);
+    c.eject("cbbtc-usdc".into(), leaf(), proof(), args());
+    assert_eq!(calls()[0].1, "sign");
+}
+
+#[test]
+fn eject_opens_when_a_lock_expires() {
+    let mut c = with_statement();
+    ctx(agent_id(), T0 + 10, NearToken::from_yoctonear(0));
+    c.begin_batch("cbbtc-usdc".into());
+    ctx("relayer.testnet".parse().unwrap(), T0 + 10 + LOCK_MS, EJECT_DEPOSIT);
+    c.eject("cbbtc-usdc".into(), leaf(), proof(), args());
+}
+
+#[test]
+#[should_panic(expected = "ejects keep a window after each batch")]
+fn agent_cannot_relock_inside_the_eject_window() {
+    let mut c = with_statement();
+    ctx(agent_id(), T0 + 10, NearToken::from_yoctonear(0));
+    c.begin_batch("cbbtc-usdc".into());
+    c.end_batch("cbbtc-usdc".into());
+    ctx(agent_id(), T0 + 10 + EJECT_WINDOW_MS - 1, NearToken::from_yoctonear(0));
+    c.begin_batch("cbbtc-usdc".into());
+}
+
+#[test]
+fn agent_can_relock_after_the_eject_window() {
+    let mut c = with_statement();
+    ctx(agent_id(), T0 + 10, NearToken::from_yoctonear(0));
+    c.begin_batch("cbbtc-usdc".into());
+    c.end_batch("cbbtc-usdc".into());
+    ctx(agent_id(), T0 + 10 + EJECT_WINDOW_MS, NearToken::from_yoctonear(0));
+    c.begin_batch("cbbtc-usdc".into());
+}
+
+#[test]
+#[should_panic(expected = "an eject is being signed")]
+fn agent_cannot_lock_while_an_eject_is_being_signed() {
+    let mut c = with_statement();
+    ctx("relayer.testnet".parse().unwrap(), T0 + 5, EJECT_DEPOSIT);
+    c.eject("cbbtc-usdc".into(), leaf(), proof(), args());
+    ctx(agent_id(), T0 + 10 + EJECT_WINDOW_MS, NearToken::from_yoctonear(0));
+    c.begin_batch("cbbtc-usdc".into());
+}
+
+#[test]
+fn agent_can_lock_once_the_eject_signature_returned() {
+    let mut c = with_statement();
+    let p = prepared(&c);
+    ctx("relayer.testnet".parse().unwrap(), T0 + 5, EJECT_DEPOSIT);
+    c.eject("cbbtc-usdc".into(), leaf(), proof(), args());
+    eject_callback(&mut c, p, Err(PromiseError::Failed));
+    ctx(agent_id(), T0 + 10 + EJECT_WINDOW_MS, NearToken::from_yoctonear(0));
+    c.begin_batch("cbbtc-usdc".into());
+}
+
+#[test]
+#[should_panic(expected = "attach 0.02 NEAR")]
+fn eject_needs_a_storage_deposit() {
+    let mut c = with_statement();
+    ctx("relayer.testnet".parse().unwrap(), T0 + 5, NearToken::from_yoctonear(0));
+    c.eject("cbbtc-usdc".into(), leaf(), proof(), args());
+}
+
+#[test]
+fn a_lost_eject_signature_stops_holding_the_lock_after_the_timeout() {
+    let mut c = with_statement();
+    ctx("relayer.testnet".parse().unwrap(), T0 + 5, EJECT_DEPOSIT);
+    c.eject("cbbtc-usdc".into(), leaf(), proof(), args());
+    ctx(agent_id(), T0 + 5 + SIGN_TIMEOUT_MS, NearToken::from_yoctonear(0));
+    c.begin_batch("cbbtc-usdc".into());
+}
+
+#[test]
+#[should_panic(expected = "a new root needs an open batch")]
+fn a_new_root_needs_the_lock() {
+    let mut c = with_statement();
+    ctx(agent_id(), T0 + 10, NearToken::from_yoctonear(0));
+    let mut s = stmt(2, T0 + 10);
+    s.merkle_root = format!("0x{}", "77".repeat(32));
+    c.submit_statement(s);
+}
+
+#[test]
+fn a_new_root_inside_the_lock_is_accepted() {
+    let mut c = with_statement();
+    ctx(agent_id(), T0 + 10, NearToken::from_yoctonear(0));
+    c.begin_batch("cbbtc-usdc".into());
+    let mut s = stmt(2, T0 + 10);
+    s.merkle_root = format!("0x{}", "77".repeat(32));
+    c.submit_statement(s);
+}
+
+#[test]
+#[should_panic(expected = "a new root needs an open batch with time left")]
+fn a_new_root_refused_when_the_lock_is_about_to_expire() {
+    let mut c = with_statement();
+    ctx(agent_id(), T0 + 10, NearToken::from_yoctonear(0));
+    c.begin_batch("cbbtc-usdc".into());
+    ctx(agent_id(), T0 + 10 + LOCK_MS - STATEMENT_LOCK_MARGIN_MS + 1, NearToken::from_yoctonear(0));
+    let mut s = stmt(2, T0 + 10 + LOCK_MS - STATEMENT_LOCK_MARGIN_MS + 1);
+    s.merkle_root = format!("0x{}", "77".repeat(32));
+    c.submit_statement(s);
+}
+
+#[test]
+#[should_panic(expected = "dev mode cannot be switched on")]
+fn dev_mode_cannot_be_switched_on_later() {
+    ctx(deployer(), T0, NearToken::from_yoctonear(0));
+    let mut c = Contract::new(config(false));
+    c.propose_config(config(true));
+}
+
+#[test]
+#[should_panic(expected = "code is not the announced code")]
+fn wind_down_only_with_the_announced_code() {
+    let mut c = setup();
+    ctx(deployer(), T0, NearToken::from_yoctonear(0));
+    c.announce_wind_down(to_hex(&env::sha256_array(&[1, 2, 3])));
+    ctx(deployer(), T0 + WIND_DOWN_DELAY_MS, NearToken::from_yoctonear(0));
+    c.wind_down(near_sdk::json_types::Base64VecU8(vec![0, 97, 115, 109]));
 }

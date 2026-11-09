@@ -15,7 +15,7 @@ export interface Pending {
   borrow?: string;
   receive?: Receive;
   createdAt: number;
-  status: "waiting" | "arrived" | "supplied" | "applied" | "failed";
+  status: "waiting" | "arrived" | "onbase" | "supplied" | "applied" | "failed";
   arrivedAmount?: string;
   /** Collateral credited after it landed on Morpho (checkpoint, survives a crash). */
   suppliedAmount?: string;
@@ -23,8 +23,27 @@ export interface Pending {
 }
 export interface Receive { asset: string; address: string }
 export interface Request { id: string; kind: "borrow" | "withdraw"; userId: string; cohortId: string; amount: string; receive: Receive; createdAt: number; status: "queued" | "applied" | "rejected"; reason?: string }
-export interface Payout { id: string; userId: string; asset: string; amount: string; destinationAsset: string; recipient: string; notBefore: number; status: "queued" | "sent" | "done" | "failed"; deposit?: string; tx?: string; tries?: number; sentAt?: number }
-export interface EjectWatch { leafHash: string; userId: string; user: string; nonce: number; signedTx: `0x${string}`; hash: `0x${string}`; status: "pending" | "landed" | "failed"; at: number }
+export interface Payout { id: string; userId: string; asset: string; amount: string; destinationAsset: string; recipient: string; notBefore: number; status: "queued" | "sent" | "done" | "failed"; deposit?: string; tx?: string; tries?: number; sentAt?: number; cohortId?: string; note?: string }
+export interface EjectWatch { leafHash: string; userId: string; user: string; batchId: number; nonce: number; signedTx: `0x${string}`; hash: `0x${string}`; status: "pending" | "landed" | "failed"; at: number }
+/** A committed batch whose Morpho and Intents moves are still running. Each stage is recorded when done, so a crash resumes instead of repeating. */
+export interface Plan {
+  batchId: string;
+  withdraws: { userId: string; amount: string; receive: Receive }[];
+  borrows: { userId: string; amount: string; receive: Receive }[];
+  liqSold: string;
+  liqRepaid: string;
+  repaid: string;
+  done: string[];
+  txs: string[];
+  delta: { collateral: string; debt: string };
+  usersChanged: number;
+  statementTx?: string;
+  /** Intents deposit addresses of the transits back into the private balance, resolved by status. */
+  returnDeposit?: string;
+  usdcDeposit?: string;
+  returnAmount?: string;
+  usdcAmount?: string;
+}
 export interface BatchLog { batchId: string; cohortId: string; at: number; txs: string[]; statementTx?: string; delta: { collateral: string; debt: string }; usersChanged?: number }
 
 export interface State {
@@ -39,6 +58,12 @@ export interface State {
   batches: BatchLog[];
   /** Ejects signed by the contract, per cohort: how many records were read, and their state. */
   ejects?: Record<string, { seen: number; list: EjectWatch[] }>;
+  /** Per cohort: the committed batch still being executed. */
+  inflight?: Record<string, Plan>;
+  /** Per cohort: users whose eject failed and need a fresh leaf in the next batch. */
+  retouch?: Record<string, string[]>;
+  /** Per cohort: the ledger no longer commits to the root on chain (an eject landed); the next locked batch posts it. */
+  rootDirty?: Record<string, boolean>;
 }
 
 export function freshState(): State {

@@ -16,10 +16,16 @@ import { save, type State, type EjectWatch } from "./store.js";
  */
 export async function syncEjects(id: Identity, s: State, c: CohortConfig) {
   const w = ((s.ejects ??= {})[c.id] ??= { seen: 0, list: [] });
-  const recs = ((await id.viewContract("ejects", { cohort_id: c.id, from_index: w.seen, limit: 50 })) ?? []) as any[];
+  // Every page, until a short one: the list must be complete inside the batch lock.
+  const recs: any[] = [];
+  for (;;) {
+    const page = ((await id.viewContract("ejects", { cohort_id: c.id, from_index: w.seen + recs.length, limit: 50 })) ?? []) as any[];
+    recs.push(...page);
+    if (page.length < 50) break;
+  }
   for (const r of recs) {
     const signedTx = r.signed_tx as Hex;
-    w.list.push({ leafHash: r.leaf_hash, userId: userIdFor(r.user), user: r.user, nonce: Number(r.tx_nonce), signedTx, hash: keccak256(signedTx), status: "pending", at: Number(r.at_ms) });
+    w.list.push({ leafHash: r.leaf_hash, userId: userIdFor(r.user), user: r.user, batchId: Number(r.batch_id), nonce: Number(r.tx_nonce), signedTx, hash: keccak256(signedTx), status: "pending", at: Number(r.at_ms) });
     w.seen++;
   }
   const addr = base.cohortAddress(id.mpcPredecessor, c.id) as Address;
@@ -30,15 +36,16 @@ export async function syncEjects(id: Identity, s: State, c: CohortConfig) {
       if (n === e.nonce) rc = await base.landEject(e.signedTx);
       else if (n > e.nonce) {
         rc = await base.client.getTransactionReceipt({ hash: e.hash }).catch(() => null);
-        if (!rc) { e.status = "failed"; continue; } // another transaction used the nonce
+        if (!rc) { e.status = "failed"; ((s.retouch ??= {})[c.id] ??= []).push(e.userId); continue; } // another transaction used the nonce
       }
     }
     if (!rc) continue; // a future nonce: lands when the cohort reaches it (base.send lands it first)
     if (rc.status === "success") {
       s.ledgers[c.id]!.positions.delete(e.userId);
+      (s.rootDirty ??= {})[c.id] = true; // the next locked batch posts the root without this position
       delete s.notes[`${c.id}:${e.userId}`];
       e.status = "landed";
-    } else e.status = "failed";
+    } else { e.status = "failed"; ((s.retouch ??= {})[c.id] ??= []).push(e.userId); }
   }
   base.ejectQueue.set(c.id, w.list.filter((e) => e.status === "pending").map((e) => ({ nonce: e.nonce, signedTx: e.signedTx })));
   save(s);

@@ -1,7 +1,8 @@
 //! offmap.near: accepts solvency statements from an attested agent, gates chain signatures for the
 //! cohort accounts on Base, and lets any user eject their share with a Merkle proof, agent or not.
-//! The contract account itself can replace the config (set_config) while it holds a full access key;
-//! once that key is deleted nothing can change.
+//! Config changes are announced on chain and wait CONFIG_DELAY_MS before anyone can apply them.
+//! The agent can only get signatures inside a batch lock, and ejects are refused while one is open:
+//! an exit and an agent move can never interleave.
 
 use near_sdk::json_types::{U128, U64};
 use near_sdk::serde_json::{self, json};
@@ -31,6 +32,43 @@ const SIGN_GAS: Gas = Gas::from_tgas(15);
 const CALLBACK_GAS: Gas = Gas::from_tgas(10);
 const INTENTS_GAS: Gas = Gas::from_tgas(10);
 const ONE_YOCTO: NearToken = NearToken::from_yoctonear(1);
+/** Longest a batch lock can stay open. */
+pub const LOCK_MS: u64 = 30 * 60 * 1000;
+/** After every batch, ejects are open for at least this long before the agent can lock again. */
+pub const EJECT_WINDOW_MS: u64 = 2 * 60 * 1000;
+/** Public notice before a config change can be applied. */
+pub const CONFIG_DELAY_MS: u64 = 24 * 60 * 60 * 1000;
+/** Public notice before the contract can be wound down. */
+pub const WIND_DOWN_DELAY_MS: u64 = 48 * 60 * 60 * 1000;
+/** Free NEAR left on the account after a sweep, for gas and new state. */
+const SWEEP_KEEP: NearToken = NearToken::from_near(1);
+/** Each eject pays for the state it writes (leaf, user, signed transaction record). */
+pub const EJECT_DEPOSIT: NearToken = NearToken::from_millinear(20);
+/** An eject signature that has not come back within this long no longer holds the lock off. */
+pub const SIGN_TIMEOUT_MS: u64 = 10 * 60 * 1000;
+/** A statement that changes the root needs at least this much lock time left. */
+pub const STATEMENT_LOCK_MARGIN_MS: u64 = 60 * 1000;
+/** Where swept NEAR goes: the builder's own account. */
+pub const OWNER: &str = "864a509491f1c806e57e0c7ed3423737195cfb19783340576166654a8ab587b5";
+
+// Values kept outside the borsh state (so the deployed state needs no migration), under an "x:" prefix.
+fn raw_u64(k: &str) -> Option<u64> {
+    env::storage_read(k.as_bytes()).map(|v| u64::from_le_bytes(v.try_into().unwrap_or([0; 8])))
+}
+fn set_raw_u64(k: &str, v: u64) {
+    env::storage_write(k.as_bytes(), &v.to_le_bytes());
+}
+fn del_raw(k: &str) {
+    env::storage_remove(k.as_bytes());
+}
+fn lock_key(c: &str) -> String { format!("x:lock:{c}") }
+fn open_key(c: &str) -> String { format!("x:open:{c}") }
+fn signing_key(c: &str) -> String { format!("x:signing:{c}") }
+fn signing_at_key(c: &str) -> String { format!("x:signing_at:{c}") }
+fn holder_key(c: &str) -> String { format!("x:lock_by:{c}") }
+fn raw_str(k: &str) -> Option<String> {
+    env::storage_read(k.as_bytes()).and_then(|v| String::from_utf8(v).ok())
+}
 
 #[derive(BorshStorageKey)]
 #[near]
@@ -67,20 +105,7 @@ impl Contract {
     #[init]
     #[private]
     pub fn new(config: Config) -> Self {
-        require!(!config.cohorts.is_empty(), "at least one cohort");
-        for (i, c) in config.cohorts.iter().enumerate() {
-            require!(!c.id.is_empty() && !c.id.contains(':'), "cohort id must be non empty without ':'");
-            require!(config.cohorts[..i].iter().all(|o| o.id != c.id), "duplicate cohort id");
-            require!(c.ceiling_bps > 0 && c.ceiling_bps <= 10_000, "ceiling_bps must be in 1..=10000");
-            // The market id must be the Morpho id of the params we encode into ejects.
-            require!(to_hex(&market_params(c).id()) == c.market_id.to_lowercase(), "market_id does not match market params");
-            address(&c.eject_helper, "eject_helper");
-        }
-        require!(config.eject_min_gas_limit.0 <= config.eject_max_gas_limit.0, "eject gas bounds");
-        if !config.dev_mode {
-            require!(config.dev_agents.is_empty(), "dev_agents only in dev_mode");
-            require!(!config.approved_measurements.is_empty(), "approved_measurements required");
-        }
+        Self::check_config(&config);
         let mut dev_whitelist = LookupSet::new(Key::DevWhitelist);
         for a in &config.dev_agents {
             dev_whitelist.insert(a.clone());
@@ -134,21 +159,131 @@ impl Contract {
         true
     }
 
-    /// Replace the config (for example new TEE measurements after an agent image update).
-    /// Only the contract account's own key can call this; once that key is deleted, nobody can.
-    pub fn set_config(&mut self, config: Config) {
-        require!(env::predecessor_account_id() == env::current_account_id(), "only the contract account itself");
+    /// Announce a new config (for example new TEE measurements after an agent image update).
+    /// Only the contract account itself; anyone can apply it after CONFIG_DELAY_MS, so every change is public first.
+    pub fn propose_config(&mut self, config: Config) -> U64 {
+        self.require_self();
         require!(!self.recovery, "recovery mode");
-        if !config.dev_mode {
-            require!(config.dev_agents.is_empty(), "dev_agents only in dev_mode");
-        }
+        Self::check_config(&config);
+        require!(self.config.dev_mode || !config.dev_mode, "dev mode cannot be switched on");
+        let eta = env::block_timestamp_ms() + CONFIG_DELAY_MS;
+        env::storage_write(b"x:pending_config", &serde_json::to_vec(&config).unwrap());
+        set_raw_u64("x:pending_eta", eta);
+        emit("config_proposed", json!({ "eta_ms": U64(eta), "config": config }));
+        U64(eta)
+    }
+
+    pub fn apply_config(&mut self) {
+        require!(!self.recovery, "recovery mode");
+        let eta = raw_u64("x:pending_eta").unwrap_or_else(|| env::panic_str("no pending config"));
+        require!(env::block_timestamp_ms() >= eta, "config notice period has not passed");
+        let config: Config = serde_json::from_slice(&env::storage_read(b"x:pending_config").unwrap()).unwrap();
+        del_raw("x:pending_config");
+        del_raw("x:pending_eta");
         emit("config_updated", json!({ "approved_measurements": config.approved_measurements.len(), "approved_ppids": config.approved_ppids.len() }));
         self.config = config;
+    }
+
+    pub fn cancel_config(&mut self) {
+        self.require_self();
+        del_raw("x:pending_config");
+        del_raw("x:pending_eta");
+        emit("config_cancelled", json!({}));
+    }
+
+    pub fn pending_config(&self) -> Option<(U64, Config)> {
+        let eta = raw_u64("x:pending_eta")?;
+        Some((U64(eta), serde_json::from_slice(&env::storage_read(b"x:pending_config")?).ok()?))
+    }
+
+    /// Sends free NEAR above storage plus a gas buffer to OWNER. Only the contract account itself.
+    pub fn sweep(&mut self) -> U128 {
+        self.require_self();
+        let storage = env::storage_byte_cost().saturating_mul(env::storage_usage() as u128);
+        let free = env::account_balance().saturating_sub(storage).saturating_sub(SWEEP_KEEP);
+        require!(!free.is_zero(), "nothing to sweep");
+        emit("sweep", json!({ "to": OWNER, "amount": U128(free.as_yoctonear()) }));
+        let _ = Promise::new(OWNER.parse().unwrap()).transfer(free);
+        U128(free.as_yoctonear())
+    }
+
+    /// Step one of winding down: a public notice. Step two can only run WIND_DOWN_DELAY_MS later.
+    pub fn announce_wind_down(&mut self, code_hash: String) -> U64 {
+        self.require_self();
+        hex32(&code_hash, "code_hash");
+        let eta = env::block_timestamp_ms() + WIND_DOWN_DELAY_MS;
+        set_raw_u64("x:wind_down_eta", eta);
+        env::storage_write(b"x:wind_down_hash", code_hash.to_lowercase().as_bytes());
+        emit("wind_down_announced", json!({ "eta_ms": U64(eta), "code_sha256": code_hash }));
+        U64(eta)
+    }
+
+    /// After the notice, and only when every cohort statement is empty, replace this contract's code
+    /// with a small one so the storage NEAR can be released to OWNER.
+    pub fn wind_down(&mut self, code: near_sdk::json_types::Base64VecU8) -> Promise {
+        self.require_self();
+        let eta = raw_u64("x:wind_down_eta").unwrap_or_else(|| env::panic_str("announce_wind_down first"));
+        require!(env::block_timestamp_ms() >= eta, "wind down notice period has not passed");
+        require!(Some(to_hex(&env::sha256_array(&code.0))) == raw_str("x:wind_down_hash"), "code is not the announced code");
+        for (_, st) in self.statements.iter() {
+            require!(st.statement.total_collateral.0 == 0 && st.statement.total_debt.0 == 0, "a cohort still holds positions");
+        }
+        emit("wind_down", json!({ "code_bytes": code.0.len() }));
+        Promise::new(env::current_account_id()).deploy_contract(code.0)
     }
 
     /// Removes agents whose attestation expired, and their intents keys. Anyone can call.
     pub fn prune_agents(&mut self) -> u32 {
         self.prune_expired()
+    }
+
+    // ---------------- batch lock ----------------
+
+    /// The agent opens a batch. While it is open the agent can get signatures and ejects are refused.
+    /// It cannot open while an eject is still being signed, and not within EJECT_WINDOW_MS of the last batch.
+    pub fn begin_batch(&mut self, cohort_id: String) -> U64 {
+        require!(!self.recovery, "recovery mode");
+        let agent = self.require_valid_agent();
+        self.cohort(&cohort_id);
+        let now = env::block_timestamp_ms();
+        if let Some(until) = raw_u64(&lock_key(&cohort_id)) {
+            if now < until && raw_str(&holder_key(&cohort_id)).as_deref() == Some(agent.as_str()) {
+                return U64(until); // our own open lock, from an interrupted run
+            }
+            require!(now >= until, "a batch is already open");
+            // An expired lock counts as closed at its deadline.
+            del_raw(&lock_key(&cohort_id));
+            set_raw_u64(&open_key(&cohort_id), until);
+        }
+        let signing = raw_u64(&signing_key(&cohort_id)).unwrap_or(0);
+        let last = raw_u64(&signing_at_key(&cohort_id)).unwrap_or(0);
+        require!(signing == 0 || now >= last + SIGN_TIMEOUT_MS, "an eject is being signed");
+        let opened = raw_u64(&open_key(&cohort_id)).unwrap_or(0);
+        require!(now >= opened + EJECT_WINDOW_MS, "ejects keep a window after each batch");
+        let until = now + LOCK_MS;
+        set_raw_u64(&lock_key(&cohort_id), until);
+        env::storage_write(holder_key(&cohort_id).as_bytes(), agent.as_bytes());
+        set_raw_u64(&signing_key(&cohort_id), 0);
+        emit("batch_open", json!({ "cohort_id": cohort_id, "until_ms": U64(until) }));
+        U64(until)
+    }
+
+    pub fn end_batch(&mut self, cohort_id: String) {
+        let agent = self.require_valid_agent();
+        require!(raw_str(&holder_key(&cohort_id)).as_deref() == Some(agent.as_str()), "not the lock holder");
+        self.release(&cohort_id);
+    }
+
+    /// (lock deadline if a batch is open, earliest time the next batch may open)
+    pub fn batch_holder(&self, cohort_id: String) -> Option<String> {
+        raw_str(&holder_key(&cohort_id))
+    }
+
+    pub fn batch_status(&self, cohort_id: String) -> (Option<U64>, U64) {
+        let now = env::block_timestamp_ms();
+        let lock = raw_u64(&lock_key(&cohort_id)).filter(|u| *u > now);
+        let opened = match raw_u64(&lock_key(&cohort_id)) { Some(u) if u <= now => u, _ => raw_u64(&open_key(&cohort_id)).unwrap_or(0) };
+        (lock.map(U64), U64(opened + EJECT_WINDOW_MS))
     }
 
     // ---------------- statements ----------------
@@ -164,6 +299,14 @@ impl Contract {
         }
         require!(stmt.timestamp_ms.0 <= now, "statement timestamp is in the future");
         require!(now - stmt.timestamp_ms.0 <= self.config.statement_max_age_ms.0, "statement is stale");
+        // A statement that changes the root must come from the lock holder with time left on the lock,
+        // so no eject can be signed against the old root while the agent is still deciding the batch.
+        let same_root = self.statements.get(&stmt.cohort_id).map(|p| p.statement.merkle_root.to_lowercase() == stmt.merkle_root.to_lowercase()).unwrap_or(true); // the first statement: no note exists yet
+        if !same_root {
+            let until = raw_u64(&lock_key(&stmt.cohort_id)).unwrap_or(0);
+            require!(now + STATEMENT_LOCK_MARGIN_MS <= until, "a new root needs an open batch with time left");
+            require!(raw_str(&holder_key(&stmt.cohort_id)).as_deref() == Some(agent.as_str()), "not the lock holder");
+        }
         let lc = stmt.leaf_count;
         require!(lc.is_power_of_two() && lc >= MIN_LEAVES && lc <= 1 << MAX_DEPTH, "leaf_count must be a power of two >= 1024");
         hex32(&stmt.merkle_root, "merkle_root");
@@ -189,6 +332,9 @@ impl Contract {
         self.cohort(&cohort_id);
         let s = self.statements.get(&cohort_id).unwrap_or_else(|| env::panic_str("no statement for cohort"));
         require!(env::block_timestamp_ms() - s.accepted_at_ms <= self.config.statement_max_age_ms.0, "statement is stale");
+        let until = raw_u64(&lock_key(&cohort_id)).unwrap_or(0);
+        require!(env::block_timestamp_ms() < until, "open a batch first: the agent signs only inside a batch lock");
+        require!(raw_str(&holder_key(&cohort_id)).as_deref() == Some(env::predecessor_account_id().as_str()), "not the lock holder");
         let payload = hex32(&payload_hex, "payload");
         emit("signature_requested", json!({ "cohort_id": cohort_id, "payload": to_hex(&payload) }));
         self.sign(&cohort_id, &payload)
@@ -204,12 +350,17 @@ impl Contract {
 
     /// Permissionless exit. Verifies the leaf against the latest root, marks it spent, builds the
     /// EIP-1559 call to EjectHelper.eject and asks the MPC network to sign it with the cohort key.
+    #[payable]
     pub fn eject(&mut self, cohort_id: String, leaf: Leaf, proof: Proof, eject_args: EjectArgs) -> Promise {
+        require!(env::attached_deposit() >= EJECT_DEPOSIT, "attach 0.02 NEAR for the eject's storage");
         let caller = env::predecessor_account_id();
         let p = self.prepare_eject(&cohort_id, &leaf, &proof, &eject_args, Some(&caller));
 
         self.ejected_leaves.insert(p.leaf_hash.clone());
         self.ejected_users.insert(p.user_key.clone(), p.batch_id);
+        let k = signing_key(&cohort_id);
+        set_raw_u64(&k, raw_u64(&k).unwrap_or(0) + 1);
+        set_raw_u64(&signing_at_key(&cohort_id), env::block_timestamp_ms());
         emit("eject_requested", json!({ "cohort_id": cohort_id, "leaf_hash": p.leaf_hash, "user": eject_args.user, "collateral": leaf.collateral, "debt": leaf.debt, "batch_id": U64(p.batch_id), "payload": to_hex(&p.payload) }));
 
         self.sign(&cohort_id, &p.payload).then(
@@ -240,6 +391,8 @@ impl Contract {
         tx: TxParts,
         #[callback_result] r: Result<SignResponse, PromiseError>,
     ) -> EjectOutcome {
+        let k = signing_key(&cohort_id);
+        set_raw_u64(&k, raw_u64(&k).unwrap_or(1).saturating_sub(1));
         let t = tx.to_tx();
         let unsigned_tx = to_hex(&t.unsigned());
         let payload_hash = to_hex(&t.signing_hash());
@@ -433,6 +586,36 @@ impl Contract {
         }
     }
 
+    fn require_self(&self) {
+        require!(env::predecessor_account_id() == env::current_account_id(), "only the contract account itself");
+    }
+
+    fn release(&mut self, cohort_id: &str) {
+        if raw_u64(&lock_key(cohort_id)).is_some() {
+            del_raw(&lock_key(cohort_id));
+            del_raw(&holder_key(cohort_id));
+            set_raw_u64(&open_key(cohort_id), env::block_timestamp_ms());
+            emit("batch_closed", json!({ "cohort_id": cohort_id }));
+        }
+    }
+
+    /// Every rule `new` enforces, also applied to proposed configs.
+    fn check_config(config: &Config) {
+        require!(!config.cohorts.is_empty(), "at least one cohort");
+        for (i, c) in config.cohorts.iter().enumerate() {
+            require!(!c.id.is_empty() && !c.id.contains(':'), "cohort id must be non empty without ':'");
+            require!(config.cohorts[..i].iter().all(|o| o.id != c.id), "duplicate cohort id");
+            require!(c.ceiling_bps > 0 && c.ceiling_bps <= 10_000, "ceiling_bps must be in 1..=10000");
+            require!(to_hex(&market_params(c).id()) == c.market_id.to_lowercase(), "market_id does not match market params");
+            address(&c.eject_helper, "eject_helper");
+        }
+        require!(config.eject_min_gas_limit.0 <= config.eject_max_gas_limit.0, "eject gas bounds");
+        if !config.dev_mode {
+            require!(config.dev_agents.is_empty(), "dev_agents only in dev_mode");
+            require!(!config.approved_measurements.is_empty(), "approved_measurements required");
+        }
+    }
+
     fn require_valid_agent(&self) -> AccountId {
         let account = env::predecessor_account_id();
         let a = self.agents.get(&account).unwrap_or_else(|| env::panic_str("agent not registered"));
@@ -496,6 +679,10 @@ impl Contract {
 
     fn prepare_eject(&self, cohort_id: &str, leaf: &Leaf, proof: &Proof, a: &EjectArgs, caller: Option<&AccountId>) -> Prepared {
         let cohort = self.cohort(cohort_id);
+        if !self.recovery {
+            let until = raw_u64(&lock_key(cohort_id)).unwrap_or(0);
+            require!(env::block_timestamp_ms() >= until, format!("a batch is open for this cohort; eject opens again by {until} ms"));
+        }
         let st = self.statements.get(cohort_id).unwrap_or_else(|| env::panic_str("no statement for cohort"));
         let s = &st.statement;
 

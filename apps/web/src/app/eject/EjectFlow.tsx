@@ -289,7 +289,7 @@ export function EjectFlow() {
       const accounts = await wallet.getAccounts();
       const res = await wallet.signAndSendTransaction({
         receiverId: CONTRACT_ID,
-        actions: [{ type: "FunctionCall", params: { methodName: "eject", args, gas: "300000000000000", deposit: "0" } }],
+        actions: [{ type: "FunctionCall", params: { methodName: "eject", args, gas: "300000000000000", deposit: "20000000000000000000000" } }],
       });
       const hash = res?.transaction?.hash ?? (res as { transaction_outcome?: { id?: string } })?.transaction_outcome?.id ?? null;
       setNearTx(hash);
@@ -458,7 +458,7 @@ export function EjectFlow() {
         {args && (
           <details className="mt-4">
             <summary className="num text-[12px] uppercase tracking-[0.1em] text-ink-2">Show the exact call</summary>
-            <pre className="num mt-3 max-h-72 overflow-auto bg-paper-2 p-4 text-[11px] leading-relaxed text-ink-2">{`${CONTRACT_ID}.eject(${JSON.stringify(args, null, 2)})\ngas 300 Tgas · deposit 0`}</pre>
+            <pre className="num mt-3 max-h-72 overflow-auto bg-paper-2 p-4 text-[11px] leading-relaxed text-ink-2">{`${CONTRACT_ID}.eject(${JSON.stringify(args, null, 2)})\ngas 300 Tgas · deposit 0.02 NEAR (pays for the eject record)`}</pre>
           </details>
         )}
         <div className="mt-5 flex flex-wrap gap-3">

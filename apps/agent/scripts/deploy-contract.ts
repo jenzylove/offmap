@@ -43,9 +43,21 @@ if (process.argv.includes("--code-only")) {
   console.log("code updated", r.transaction.hash, JSON.stringify(r.status).slice(0, 120));
   process.exit(0);
 }
-if (process.argv.includes("--set-config")) {
+if (process.argv.includes("--set-config-legacy")) {
+  // Only for the contract version before the timelock (set_config was removed in it).
   const r = await contract.signAndSendTransaction({ receiverId: CONTRACT, actions: [actionCreators.functionCall("set_config", Buffer.from(JSON.stringify({ config })), 100_000_000_000_000n, 0n)] });
   console.log("set_config", r.transaction.hash, JSON.stringify(r.status).slice(0, 160));
+  process.exit(0);
+}
+if (process.argv.includes("--propose-config")) {
+  // Config changes are public first: anyone can apply this one after the contract's 24h notice period.
+  const r = await contract.signAndSendTransaction({ receiverId: CONTRACT, actions: [actionCreators.functionCall("propose_config", Buffer.from(JSON.stringify({ config })), 100_000_000_000_000n, 0n)] });
+  console.log("propose_config", r.transaction.hash, JSON.stringify(r.status).slice(0, 160));
+  process.exit(0);
+}
+if (process.argv.includes("--apply-config")) {
+  const r = await contract.signAndSendTransaction({ receiverId: CONTRACT, actions: [actionCreators.functionCall("apply_config", Buffer.from("{}"), 100_000_000_000_000n, 0n)] });
+  console.log("apply_config", r.transaction.hash, JSON.stringify(r.status).slice(0, 160));
   process.exit(0);
 }
 if (process.argv.includes("--recreate")) throw new Error("never delete a named account: snipers take it (see memory)");

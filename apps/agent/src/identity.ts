@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import bs58 from "bs58";
 import { KeyPair, type KeyPairString } from "@near-js/crypto";
 import { Account } from "@near-js/accounts";
+import { actionCreators } from "@near-js/transactions";
 import { JsonRpcProvider } from "@near-js/providers";
 import { KeyPairSigner } from "@near-js/signers";
 import { ShadeClient } from "@neardefi/shade-agent-js";
@@ -133,6 +134,15 @@ async function teeIdentity(): Promise<Identity> {
           await client.register();
           reg.status = "registered"; reg.error = undefined; reg.at = Date.now();
           console.log("registered with", config.contractId);
+          // Keep enough NEAR for gas and send the rest back to the contract it came from, so NEAR never
+          // piles up on an agent account. (2.1 NEAR was stranded on earlier random key agents.)
+          const bal = await client.balance();
+          if (bal > KEEP_NEAR + 0.05) {
+            const amount = BigInt(Math.floor((bal - KEEP_NEAR) * 1e6)) * 10n ** 18n;
+            await new Account(accountId, provider(), new KeyPairSigner(kp)).signAndSendTransaction({ receiverId: config.contractId, actions: [actionCreators.transfer(amount)] })
+              .then(() => console.log("returned", (bal - KEEP_NEAR).toFixed(3), "NEAR to", config.contractId))
+              .catch((e) => { reg.error = `surplus return: ${String(e?.message ?? e)}`; });
+          }
           setInterval(() => client.register().catch((e) => { reg.error = `re-register: ${String(e?.message ?? e)}`; }), 6 * 24 * 3600e3);
           return;
         } catch (e: any) {
@@ -144,5 +154,8 @@ async function teeIdentity(): Promise<Identity> {
     },
   };
 }
+
+/** NEAR an agent keeps for gas: each 300 Tgas call needs about 0.31 NEAR available. */
+const KEEP_NEAR = 0.45;
 
 export const sha256 = (b: Uint8Array) => createHash("sha256").update(b).digest();

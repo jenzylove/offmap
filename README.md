@@ -62,7 +62,7 @@ Offmap needs three things at once, and NEAR is where they meet: **confidential c
 | `offmapfi.near` contract | Live on NEAR mainnet, requires TEE | [deploy](https://nearblocks.io/txns/28BvAxvTXkr2VhpRq2xZwkkDPJR9jSyjUmCv8vM7P12E), [code](contracts/near) |
 | Agent in Intel TDX | Running on Phala (dstack 0.5.12), registered with a real attestation | [register_agent](https://nearblocks.io/txns/B5zGUub7dp15BHHpuR8ZEUQhN3wKyP5iSn9Q2wR9Ssez), `/attestation` |
 | Pooled Morpho position | Live on Base, cbBTC/USDC cohort | [`0x5bDE…9B5a`](https://basescan.org/address/0x5bDE486bF9F69331100F48edfF3cf580CB869B5a) |
-| Private loan, end to end | Done on mainnet through the TEE agent: 6,296 sats supplied, 1.5 USDC borrowed, paid in two lots | [lot 1](https://basescan.org/tx/0x683d935fe5), [lot 2](https://basescan.org/tx/0xa7151c2ed4e3), [build log](docs/BUILD_LOG.md) |
+| Private loan, end to end | Done on mainnet through the TEE agent: 6,296 sats supplied, 1.5 USDC borrowed, paid in two lots | [lot 1](https://basescan.org/tx/0x683d935fe501c4e83179d375645fcc66215458a2da2ee073008b81abb96fc92b), [lot 2](https://basescan.org/tx/0xa7151c2ed4e3bc6ecb1b67c016569bc122503487d0c302f313bc9e03c081a42a), [build log](docs/BUILD_LOG.md) |
 | Confidential balance custody | Owned by `offmapfi.near`; only the attested agent key is registered on `intents.near` | `node scripts/judge-checks.mjs` |
 | Solvency statements | Posted on chain each batch: totals, reserve, salted Merkle root of every position | contract view `statement` |
 | Eject | Contract builds and MPC signs the eject; helper live on Base and source verified | [`0x262f…f8b8`](https://basescan.org/address/0x262fe96b235be762dca8cc1937a542848e12f8b8), [fork test](docs/spikes/s4-eject.md) |
@@ -84,12 +84,12 @@ Offmap charges **1% a year on top of Morpho's borrow rate**. On $10M of private 
 |---|---|
 | [`packages/core`](packages/core) | Private ledger, risk rules (60% open, private liquidation at 70%), batch netting, loss waterfall, salted Merkle tree, notes. 55 tests including a 10,000 operation property test |
 | [`apps/agent`](apps/agent) | The TEE agent: batches, Morpho through chain signatures, confidential Intents in and out, price median of four sources, encrypted state, HTTP API |
-| [`contracts/near`](contracts/near) | `offmapfi.near`: Shade Agent registration with TDX attestation, intents key custody, statements, MPC signing gate, eject transaction builder, recovery. 50 tests |
+| [`contracts/near`](contracts/near) | `offmapfi.near`: Shade Agent registration with TDX attestation, intents key custody, statements, MPC signing gate, eject transaction builder, batch lock, timelocked config, recovery. 62 tests |
 | [`contracts/base`](contracts/base) | `EjectHelper`: one transaction eject with a Morpho flash loan |
 | [`apps/web`](apps/web) | The site: landing, borrow, your view, hunter view, proof, eject |
 | [`docs`](docs) | [PRD](docs/PRD.md), [architecture](docs/ARCHITECTURE.md), [spikes](docs/spikes), [build log](docs/BUILD_LOG.md) |
 
-Run locally: `pnpm install && pnpm -r test`.
+Run locally: `pnpm install && pnpm -r test` (core, agent, web), `cd contracts/near && cargo test` (contract, 62 tests), `cd contracts/base && forge test --fork-url https://mainnet.base.org` (eject helper on a Base fork).
 
 ## Scope and limits
 

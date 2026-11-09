@@ -44,6 +44,10 @@ export async function marketParams(c: CohortConfig) {
   return { loanToken, collateralToken, oracle, irm, lltv };
 }
 
+export async function marketTotals(c: CohortConfig) {
+  const [, , borrowAssets, borrowShares] = await client.readContract({ address: MORPHO, abi, functionName: "market", args: [c.marketId] });
+  return { borrowAssets: BigInt(borrowAssets), borrowShares: BigInt(borrowShares) };
+}
 export async function position(c: CohortConfig, who: Address) {
   const [supplyShares, borrowShares, collateral] = await client.readContract({ address: MORPHO, abi, functionName: "position", args: [c.marketId, who] });
   const [, , totalBorrowAssets, totalBorrowShares] = await client.readContract({ address: MORPHO, abi, functionName: "market", args: [c.marketId] });
@@ -67,10 +71,10 @@ export async function send(id: Identity, cohortId: string, tx: { to: Address; da
   const from = cohortAddress(id.mpcPredecessor, cohortId);
   // A signed eject at the next nonce goes first: the agent never takes a user's exit nonce.
   for (const e of [...(ejectQueue.get(cohortId) ?? [])].sort((a, b) => a.nonce - b.nonce)) {
-    if (e.nonce === (await client.getTransactionCount({ address: from, blockTag: "pending" }))) await landEject(e.signedTx);
+    if (e.nonce === (await client.getTransactionCount({ address: from, blockTag: "latest" }))) await landEject(e.signedTx);
   }
   const [nonce, fees, gas] = await Promise.all([
-    client.getTransactionCount({ address: from, blockTag: "pending" }),
+    client.getTransactionCount({ address: from, blockTag: "latest" }),
     client.estimateFeesPerGas(),
     client.estimateGas({ account: from, ...tx }),
   ]);
@@ -79,7 +83,7 @@ export async function send(id: Identity, cohortId: string, tx: { to: Address; da
   const sig = await id.mpcSign(cohortId, Buffer.from(hash.slice(2), "hex"));
   const signed = serializeTransaction(unsigned, { r: `0x${sig.r}`, s: `0x${sig.s}`, yParity: sig.v - 27 });
   const txHash = await client.sendRawTransaction({ serializedTransaction: signed });
-  const receipt = await client.waitForTransactionReceipt({ hash: txHash });
+  const receipt = await client.waitForTransactionReceipt({ hash: txHash, timeout: 180_000 });
   if (receipt.status !== "success") throw new Error(`base tx reverted ${txHash}`);
   return txHash;
 }

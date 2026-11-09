@@ -111,7 +111,7 @@ export function HunterView() {
         <div>
           <div className="font-serif text-[clamp(24px,3vw,34px)] leading-tight">No per user data exists anywhere public.</div>
           <p className="mt-2 max-w-2xl text-ink-2">
-            Not on Morpho, not on Base, not on NEAR, not in any API. Each cohort shows up as one borrower. The contract stores only totals and a salted root that cannot be opened by guessing amounts.
+            Not on Morpho, not on Base, not on NEAR, not in any API. Each cohort shows up as one borrower. The contract stores only totals and a salted root that cannot be opened by guessing amounts. One honest caveat: while a cohort has a single borrower, its total is that borrower's loan. The crowd you hide in grows with every user, and the leak study on the proof page shows the live number.
           </p>
         </div>
         <div className="num text-[12px] uppercase tracking-[0.12em] text-ink-3">by design</div>
