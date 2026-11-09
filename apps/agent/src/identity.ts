@@ -35,7 +35,7 @@ export interface Identity {
   /** TEE only: the dstack attestation (quote, tcb info, event log) bound to this agent account. */
   attestation?: () => Promise<unknown>;
   /** Registration state, shown on /health so a failure is never invisible. */
-  registration: { status: "not_needed" | "waiting_for_funds" | "registering" | "registered" | "failed"; error?: string; at?: number };
+  registration: { status: "not_needed" | "waiting_for_funds" | "registering" | "registered" | "failed"; error?: string; at?: number; surplus?: string };
 }
 
 /** Rotates to the next NEAR RPC only on transport trouble (rate limits, 5xx, timeouts); contract errors pass through untouched. */
@@ -113,8 +113,8 @@ async function teeIdentity(): Promise<Identity> {
     publicKey: kp.getPublicKey().toString(),
     signHash: (hash) => "ed25519:" + bs58.encode(Buffer.from(kp.sign(hash).signature)),
     mpcSign: async (cohortId, hash) =>
-      toRsv(await client.call({ methodName: "request_signature", args: { cohort_id: cohortId, payload_hex: Buffer.from(hash).toString("hex") }, gas: 300_000_000_000_000n })),
-    callContract: (method, args, gas = 100_000_000_000_000n, deposit = 0n) => client.call({ methodName: method, args, gas, deposit } as any),
+      toRsv(await client.call({ methodName: "request_signature", args: { cohort_id: cohortId, payload_hex: Buffer.from(hash).toString("hex") }, gas: SIGN_GAS })),
+    callContract: (method, args, gas = CALL_GAS, deposit = 0n) => client.call({ methodName: method, args, gas, deposit } as any),
     viewContract: (method, args) => client.view({ methodName: method, args: args as Record<string, unknown> }),
     mpcPredecessor: config.contractId,
     tee: true,
@@ -122,28 +122,61 @@ async function teeIdentity(): Promise<Identity> {
     registration: { status: "waiting_for_funds" },
     register: async function (this: Identity) {
       const reg = this.registration;
+      // NEAR reserves a call's whole prepaid gas up front, so every call here prepays only what it uses.
+      const rawBalance = async () => {
+        const r = await fetch(config.nearRpc, { method: "POST", headers: { "content-type": "application/json" }, signal: AbortSignal.timeout(20_000),
+          body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "query", params: { request_type: "view_account", finality: "final", account_id: accountId } }) });
+        const j: any = await r.json();
+        return Number(BigInt(j.result.amount) / 10n ** 18n) / 1e6;
+      };
+      // Registration verifies a TDX quote on chain (about 184 Tgas, 0.018 NEAR): only when needed.
+      const ownRecord = async () => {
+        const agents = ((await client.view({ methodName: "get_agents", args: {} })) ?? []) as any[];
+        return agents.find((x) => x.account_id === accountId);
+      };
+      const needsRegistration = async () => {
+        const me = await ownRecord();
+        return !me || me.validity !== "Valid" || Number(me.valid_until_ms) < Date.now() + 36 * 3600e3;
+      };
+      const registerOnce = async () => {
+        const attestation = await client.getAttestation();
+        const deposit = (await ownRecord()) ? 0n : 5_000_000_000_000_000_000n;
+        await client.call({ methodName: "register_agent", args: { attestation }, deposit, gas: REGISTER_GAS } as any);
+      };
+      // Keep enough NEAR for gas and send the rest back to the contract it came from, so NEAR never
+      // piles up on an agent account (2.1 NEAR was stranded on earlier random key agents).
+      const sweepSurplus = async () => {
+        try {
+          const bal = await rawBalance();
+          reg.surplus = `balance ${bal.toFixed(3)} NEAR, keeps ${KEEP_NEAR}`;
+          if (bal <= KEEP_NEAR + 0.02) return;
+          const amount = BigInt(Math.floor((bal - KEEP_NEAR) * 1e6)) * 10n ** 18n;
+          const acc = new Account(accountId, new JsonRpcProvider({ url: config.nearRpc }), new KeyPairSigner(kp));
+          const r: any = await Promise.race([
+            acc.signAndSendTransaction({ receiverId: config.contractId, actions: [actionCreators.transfer(amount)] }),
+            new Promise((_, rej) => setTimeout(() => rej(new Error("timed out after 90s")), 90_000)),
+          ]);
+          reg.surplus = `returned ${(bal - KEEP_NEAR).toFixed(3)} NEAR to ${config.contractId}, tx ${r?.transaction?.hash}`;
+        } catch (e: any) { reg.surplus = `return failed: ${String(e?.message ?? e).slice(0, 300)}`; }
+      };
       // Retry forever with backoff; every failure is recorded and served on /health.
       for (let attempt = 0; ; attempt++) {
         try {
-          if ((await client.balance()) < 0.05) {
+          if ((await rawBalance()) < 0.25) {
             reg.status = "waiting_for_funds"; reg.at = Date.now();
             await new Promise((r) => setTimeout(r, 30_000));
             continue;
           }
-          reg.status = "registering"; reg.at = Date.now();
-          await client.register();
+          if (await needsRegistration()) {
+            reg.status = "registering"; reg.at = Date.now();
+            await registerOnce();
+          }
           reg.status = "registered"; reg.error = undefined; reg.at = Date.now();
           console.log("registered with", config.contractId);
-          // Keep enough NEAR for gas and send the rest back to the contract it came from, so NEAR never
-          // piles up on an agent account. (2.1 NEAR was stranded on earlier random key agents.)
-          const bal = await client.balance();
-          if (bal > KEEP_NEAR + 0.05) {
-            const amount = BigInt(Math.floor((bal - KEEP_NEAR) * 1e6)) * 10n ** 18n;
-            await new Account(accountId, provider(), new KeyPairSigner(kp)).signAndSendTransaction({ receiverId: config.contractId, actions: [actionCreators.transfer(amount)] })
-              .then(() => console.log("returned", (bal - KEEP_NEAR).toFixed(3), "NEAR to", config.contractId))
-              .catch((e) => { reg.error = `surplus return: ${String(e?.message ?? e)}`; });
-          }
-          setInterval(() => client.register().catch((e) => { reg.error = `re-register: ${String(e?.message ?? e)}`; }), 6 * 24 * 3600e3);
+          void sweepSurplus();
+          setInterval(() => void sweepSurplus(), 3600e3);
+          // Renew before the attestation expires; checked hourly, registers only inside the last 36 hours.
+          setInterval(() => void needsRegistration().then((n) => (n ? registerOnce() : undefined)).catch((e) => { reg.error = `re-register: ${String(e?.message ?? e)}`; }), 3600e3);
           return;
         } catch (e: any) {
           reg.status = "failed"; reg.error = String(e?.message ?? e).slice(0, 600); reg.at = Date.now();
@@ -155,7 +188,11 @@ async function teeIdentity(): Promise<Identity> {
   };
 }
 
-/** NEAR an agent keeps for gas: each 300 Tgas call needs about 0.31 NEAR available. */
-const KEEP_NEAR = 0.45;
+/** Prepaid gas per call. NEAR reserves it all up front (about 0.1 NEAR per 100 Tgas), so each is sized to use. */
+const SIGN_GAS = 60_000_000_000_000n; // request_signature forwards 15 Tgas to the MPC signer plus a 10 Tgas callback
+const CALL_GAS = 30_000_000_000_000n; // statements and the batch lock
+const REGISTER_GAS = 220_000_000_000_000n; // on chain TDX quote verification uses about 184 Tgas
+/** NEAR an agent keeps: enough to renew its registration (0.22 reserved) with room for a week of batches. */
+const KEEP_NEAR = 0.27;
 
 export const sha256 = (b: Uint8Array) => createHash("sha256").update(b).digest();

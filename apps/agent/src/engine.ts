@@ -398,9 +398,9 @@ export async function tick(id: Identity, s: State) {
       const moves = !!s.inflight?.[c.id] || !!s.rootDirty?.[c.id] || s.pending.some((p) => p.cohortId === c.id && ["arrived", "onbase", "supplied"].includes(p.status)) || s.requests.some((r) => r.cohortId === c.id && r.status === "queued");
       const open = s.ledgers[c.id]!.positions.size > 0;
       const last = s.batches.filter((b) => b.cohortId === c.id).at(-1)?.at ?? 0;
-      // Open positions are checked every tick for private liquidation; a statement is refreshed at least every 15 minutes.
+      // Open positions are checked every tick for private liquidation; a quiet cohort runs a batch every 6 hours (each costs NEAR gas).
       const needsLiq = open && (await needsLiquidation(s, c));
-      if (!moves && !needsLiq && !(open && Date.now() - last > 15 * 60_000)) continue;
+      if (!moves && !needsLiq && !(open && Date.now() - last > 6 * 3600_000)) continue;
       try { await runCohort(id, s, c); delete engineErrors[`cohort:${c.id}`]; } catch (e) { note(`cohort:${c.id}`, e); log("cohort", c.id, "failed, ledger unchanged:", String(e)); }
     }
     await runPayouts(id, s);

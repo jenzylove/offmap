@@ -45,7 +45,7 @@ if (process.argv.includes("--code-only")) {
 }
 if (process.argv.includes("--set-config-legacy")) {
   // Only for the contract version before the timelock (set_config was removed in it).
-  const r = await contract.signAndSendTransaction({ receiverId: CONTRACT, actions: [actionCreators.functionCall("set_config", Buffer.from(JSON.stringify({ config })), 100_000_000_000_000n, 0n)] });
+  const r = await contract.signAndSendTransaction({ receiverId: CONTRACT, actions: [actionCreators.functionCall("set_config", Buffer.from(JSON.stringify({ config })), 30_000_000_000_000n, 0n)] });
   console.log("set_config", r.transaction.hash, JSON.stringify(r.status).slice(0, 160));
   process.exit(0);
 }

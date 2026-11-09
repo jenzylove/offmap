@@ -244,7 +244,6 @@ fn get_agent_shape_matches_shade_reference() {
     assert!(v["measurements"]["rtmrs"]["mrtd"].is_string());
     assert!(v["valid_until_ms"].is_string());
     assert!(c.get_agent(other_agent()).is_none());
-    assert_eq!(c.get_whitelisted_agents_for_local(), vec![agent_id()]);
 }
 
 // ---------------- statements ----------------

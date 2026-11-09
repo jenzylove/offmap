@@ -21,5 +21,5 @@ m=json.load(open('measurements.json'))
 m['measurements']={"rtmrs":{"mrtd":t['mrtd'],"rtmr0":t['rtmr0'],"rtmr1":t['rtmr1'],"rtmr2":t['rtmr2']},"key_provider_event_digest":kp['digest'],"app_compose_hash_payload":t['compose_hash']}
 json.dump(m,open('measurements.json','w'),indent=2)
 PY
-cd $ROOT/apps/agent && npx tsx scripts/deploy-contract.ts --propose-config | tail -1
+cd $ROOT/apps/agent && npx tsx scripts/deploy-contract.ts ${CONFIG_FLAG:---propose-config} | tail -1
 echo "Config proposed: run deploy-contract.ts --apply-config after the 24h notice"

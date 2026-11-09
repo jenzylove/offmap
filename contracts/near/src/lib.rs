@@ -275,10 +275,6 @@ impl Contract {
     }
 
     /// (lock deadline if a batch is open, earliest time the next batch may open)
-    pub fn batch_holder(&self, cohort_id: String) -> Option<String> {
-        raw_str(&holder_key(&cohort_id))
-    }
-
     pub fn batch_status(&self, cohort_id: String) -> (Option<U64>, U64) {
         let now = env::block_timestamp_ms();
         let lock = raw_u64(&lock_key(&cohort_id)).filter(|u| *u > now);
@@ -452,10 +448,6 @@ impl Contract {
         if self.recovery { "recovery" } else { "normal" }
     }
 
-    pub fn agent(&self, account_id: AccountId) -> Option<AgentView> {
-        self.get_agent(account_id)
-    }
-
     /// shade-agent-js reads this to decide whether to attach the storage deposit.
     pub fn get_agent(&self, account_id: AccountId) -> Option<AgentView> {
         self.agents.get(&account_id).map(|a| self.agent_view(&account_id, a))
@@ -480,25 +472,6 @@ impl Contract {
         }
     }
 
-    pub fn get_approved_measurements(&self) -> &Vec<FullMeasurementsHex> {
-        &self.config.approved_measurements
-    }
-
-    pub fn get_whitelisted_agents_for_local(&self) -> Vec<AccountId> {
-        require!(self.config.dev_mode, "not supported when TEE is required");
-        let mut v: Vec<AccountId> = self.config.dev_agents.clone();
-        for a in self.agents.keys() {
-            if self.dev_whitelist.contains(a) && !v.contains(a) {
-                v.push(a.clone());
-            }
-        }
-        v
-    }
-
-    pub fn is_whitelisted_dev(&self, account_id: AccountId) -> bool {
-        self.config.dev_mode && self.dev_whitelist.contains(&account_id)
-    }
-
     pub fn statement(&self, cohort_id: String) -> Option<&StoredStatement> {
         self.statements.get(&cohort_id)
     }
@@ -518,11 +491,6 @@ impl Contract {
             .skip(from_index.unwrap_or(0) as usize)
             .take(limit.unwrap_or(100) as usize)
             .collect()
-    }
-
-    pub fn cohort_address_path(&self, cohort_id: String) -> String {
-        self.cohort(&cohort_id);
-        format!("cohort:{cohort_id}")
     }
 
     pub fn last_statement_ms(&self) -> U64 {
