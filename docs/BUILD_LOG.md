@@ -23,3 +23,10 @@
 - Agent reads the contract's signed ejects every batch, lands them at their nonce before its own transactions, removes landed positions and freezes users with an eject in flight.
 - Withdraw and payout paths made idempotent. New agent image compose hash f1fc8f94…, approved by set_config [Bk1XtK…](https://nearblocks.io/txns/Bk1XtKMxcvfkVv2xeYZm7Kwi1AitKeCZmSZ9b1EVXsp8).
 - Judge checks: 11 of 11 pass.
+
+## Nov 9 2026: batch lock live
+
+- Contract upgraded ([3LMiTq…](https://nearblocks.io/txns/3LMiTqVgZU6Rc4h5K8erGpYrKFLXPoU7YYMPtSqRcg3V)): the agent signs only inside a batch lock; ejects are refused while a lock is open and the lock cannot open while an eject is being signed; a new root needs the lock holder; config changes wait 24 hours in public; sweep and wind down for the owner.
+- Agent posts the new statement before any money moves and resolves Intents transits by status, outside the lock.
+- First batch under the lock on mainnet: [begin_batch](https://nearblocks.io/txns/9YGLmXtBERqVN7vuHRhS5CKaqfJ1hi8ZKWL5aNb9gfWF), a 0.5 USDC private borrow ([borrow](https://basescan.org/tx/0x9b216922cfd7288b316a7de59a6b35743aa4de27b25a09dcd8476e3f9323aa4c), [to the private balance](https://basescan.org/tx/0xefd197b2c33c25d10d99a3d31626f3ca3cf985f529ca4daff81a7cdbdbf53d50)), [end_batch](https://nearblocks.io/txns/Gbrk8A2xLnqX6ke1qNLJGAdd122diW8CnVjFK6LgAaLg).
+- Gas right sized (60 Tgas signing, 30 Tgas calls) so the agent runs on a few tenths of a NEAR; spare NEAR goes back to the contract.

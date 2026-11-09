@@ -52,7 +52,7 @@ function ContractBlock() {
     <div>
       <Row k="Contract" v={CONTRACT_ID} href={nearblocksAddr(CONTRACT_ID)} />
       <Row k="Deployed code hash" v={short(s.codeHash, 10, 8)} sub="compare with the reproducible build in the repo" />
-      <Row k="Access keys" v={<span className={s.accessKeys === 0 ? "text-good" : "text-bad"}>{s.accessKeys === 0 ? "none (nobody holds a key)" : `${s.accessKeys} key(s) present`}</span>} />
+      <Row k="Access keys" v={<span className={s.fullAccessKeys === 0 ? "text-good" : "text-bad"}>{s.fullAccessKeys > 0 ? `${s.fullAccessKeys} full access key: the owner can still replace the code` : s.accessKeys === 0 ? "none (nobody holds a key)" : "no full access key; one restricted key for config proposals and sweep"}</span>} sub="config changes wait 24 hours in public; the agent signs only inside a batch lock" />
       <Row k="Mode" v={cfg.data?.mode ?? "n/a"} />
       <Row k="Accepted agent code" v={approved.length ? approved.map((m) => short(String(m.app_compose_hash_payload ?? ""), 10, 8)).join(", ") : "not readable"} sub="compose hash of the only image allowed to register" />
       <Row

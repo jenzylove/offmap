@@ -19,7 +19,7 @@ async function rpc<T>(method: string, params: unknown): Promise<T> {
 export type ContractState =
   | { kind: "missing"; contractId: string }
   | { kind: "no_code"; contractId: string }
-  | { kind: "live"; contractId: string; codeHash: string; accessKeys: number }
+  | { kind: "live"; contractId: string; codeHash: string; accessKeys: number; fullAccessKeys: number }
   | { kind: "error"; contractId: string; message: string };
 
 const EMPTY_CODE = "11111111111111111111111111111111";
@@ -29,7 +29,7 @@ export async function contractState(contractId = CONTRACT_ID): Promise<ContractS
     const acc = await rpc<{ code_hash: string }>("query", { request_type: "view_account", finality: "final", account_id: contractId });
     if (acc.code_hash === EMPTY_CODE) return { kind: "no_code", contractId };
     const keys = await rpc<{ keys: unknown[] }>("query", { request_type: "view_access_key_list", finality: "final", account_id: contractId });
-    return { kind: "live", contractId, codeHash: acc.code_hash, accessKeys: keys.keys.length };
+    return { kind: "live", contractId, codeHash: acc.code_hash, accessKeys: keys.keys.length, fullAccessKeys: keys.keys.filter((k: any) => k.access_key?.permission === "FullAccess").length };
   } catch (e) {
     const err = e as Error & { code?: string };
     if (err.code === "UNKNOWN_ACCOUNT") return { kind: "missing", contractId };

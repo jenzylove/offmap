@@ -37,7 +37,9 @@ check("agent is registered with the contract", health.registration?.status === "
 const att = await (await fetch(AGENT + "/attestation")).json();
 check("attested compose hash equals the hash approved on chain", att?.tcb_info?.compose_hash === approved, `${String(approved).slice(0, 16)}...`);
 const agentRec = await view(CONTRACT, "get_agent", { account_id: health.agent });
-check("contract holds this agent with its measurements", !!agentRec?.measurements);
+const agents = await view(CONTRACT, "get_agents", {});
+const mine = (agents ?? []).find((a) => a.account_id === health.agent);
+check("contract holds this agent and its attestation is valid now", !!agentRec?.measurements && mine?.validity === "Valid", JSON.stringify(mine?.validity));
 
 // 3. Only the attested agent can move the private balance: its key is the only one on intents.near.
 const keys = await view("intents.near", "public_keys_of", { account_id: CONTRACT });

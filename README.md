@@ -66,6 +66,7 @@ Offmap needs three things at once, and NEAR is where they meet: **confidential c
 | Confidential balance custody | Owned by `offmapfi.near`; only the attested agent key is registered on `intents.near` | `node scripts/judge-checks.mjs` |
 | Solvency statements | Posted on chain each batch: totals, reserve, salted Merkle root of every position | contract view `statement` |
 | Eject | Contract builds and MPC signs the eject; helper live on Base and source verified | [`0x262f…f8b8`](https://basescan.org/address/0x262fe96b235be762dca8cc1937a542848e12f8b8), [fork test](docs/spikes/s4-eject.md) |
+| Batch lock | Live: the agent can get a cohort signature only inside a lock, ejects pause while it is open (30 minutes at most) and always reopen for at least 2 minutes after, and the new statement lands before any money moves | [begin_batch](https://nearblocks.io/txns/9YGLmXtBERqVN7vuHRhS5CKaqfJ1hi8ZKWL5aNb9gfWF), [borrow](https://basescan.org/tx/0x9b216922cfd7288b316a7de59a6b35743aa4de27b25a09dcd8476e3f9323aa4c), [end_batch](https://nearblocks.io/txns/Gbrk8A2xLnqX6ke1qNLJGAdd122diW8CnVjFK6LgAaLg) |
 | Leak study | Runs hourly on Offmap's own traffic, served at `/public/leak` | [agent](https://b85acd75d1ee0d9a37241a18f68a6c55376b5e3a-8787.dstack-pha1-prod5.phala.network/public/leak) |
 | Second cohort (WETH/USDC) | Configured, no loans yet | contract `config` |
 
@@ -97,7 +98,7 @@ Run locally: `pnpm install && pnpm -r test` (core, agent, web), `cd contracts/ne
 - Agent updates ship through Phala in place and keep the agent's keys. Each update changes the attested compose hash, which `node scripts/judge-checks.mjs` compares with the hash approved on chain.
 - An eject that fails on Base (its nonce taken, fees spiked) needs a newer statement to retry. If the agent has stopped for good, no newer statement comes; the cohort's Base address also needs a little ETH for gas, which anyone can send.
 - Privacy grows with volume. With few users per batch the leak study shows real linkage, and says so.
-- The contract account still holds one full access key, used to approve new TEE measurements when the agent is updated. While it exists the owner could replace the contract; once it is deleted, nobody can change a rule. Check with `near account list-keys offmapfi.near`.
+- Owner powers are bounded by the contract: a config change (new agent code) waits 24 hours in public before anyone can apply it, dev mode cannot be switched back on, and winding down needs a 48 hour notice and empty cohorts. The account's key status reads live on the proof page and with `near account list-keys offmapfi.near`.
 - Unaudited hackathon build. Loan and cohort caps are enforced in code.
 
 ## Built with
