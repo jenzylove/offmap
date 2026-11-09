@@ -16,3 +16,10 @@
 | 2026-11-08 | | offmap.near lost to a name sniper during a redeploy (storage NEAR recovered); product contract is now **offmapfi.near** ([deploy](https://nearblocks.io/txns/28BvAxvTXkr2VhpRq2xZwkkDPJR9jSyjUmCv8vM7P12E), [code update with set_config](https://nearblocks.io/txns/4NQUPZPtkkbGrpFo347YWhbipp3YrrkSS7zEQWX4PxUU), [measurements approved](https://nearblocks.io/txns/3nsyMdRxeN2Cr8yCuFAoRw1itmBAca7pyRTsovdNcitk)) |
 | 2026-11-08 | | **Agent runs in Intel TDX on Phala (dstack 0.5.12) and registered on offmapfi.near with a real attestation** ([register_agent](https://nearblocks.io/txns/B5zGUub7dp15BHHpuR8ZEUQhN3wKyP5iSn9Q2wR9Ssez)); compose hash `e9aa24a1…a046` reproduces from `apps/agent/docker-compose.yaml`; intents.near now lists the agent key for offmapfi.near |
 | 2026-11-08 | | **First production loan through the TEE agent**: demo wallet `0xdFfE…C8c9` deposited 6,300 sats cbBTC from Base; agent supplied 6,296 sats to the production cohort `0x5bDE486b…9B5a` and borrowed 1.5 USDC (Morpho shows collateral 6296, debt 1.500000); payouts left in round lots from the shared Intents wallet ([1.0](https://basescan.org/tx/0x683d935fe5), [0.4998](https://basescan.org/tx/0xa7151c2ed4e3)). Agent key is now derived from the dstack key service, so its account survives updates |
+
+## Nov 9 2026: release audit fixes
+
+- Cohort cbbtc-usdc authorized the EjectHelper on Morpho: [0x4e9fee0e…](https://basescan.org/tx/0x4e9fee0e7798f40214b0aa6d11a2d429d7723804fc4f27caa91ea71bcb212ae4). Without it every eject reverted on withdrawCollateral.
+- Agent reads the contract's signed ejects every batch, lands them at their nonce before its own transactions, removes landed positions and freezes users with an eject in flight.
+- Withdraw and payout paths made idempotent. New agent image compose hash f1fc8f94…, approved by set_config [Bk1XtK…](https://nearblocks.io/txns/Bk1XtKMxcvfkVv2xeYZm7Kwi1AitKeCZmSZ9b1EVXsp8).
+- Judge checks: 11 of 11 pass.
