@@ -187,7 +187,7 @@ export function HunterMap({
             {compactUsd(bins[hover]!)} of loans liquidate if {symbol} falls to {usd(binLo(hover), 0)} to {usd(binLo(hover + 1), 0)}
           </span>
         ) : (
-          <span>{compactUsd(total)} of public debt mapped in this window. Hover to read a level.</span>
+          <span>{compactUsd(total)} of public debt shown. Left means a bigger fall is needed. Hover to read a level.</span>
         )}
       </figcaption>
     </figure>

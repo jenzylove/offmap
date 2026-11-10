@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { HunterMap } from "@/components/HunterMap";
 import { agent, type PositionResp } from "@/lib/agent";
-import { COHORTS, cohortById } from "@/lib/config";
-import { pct, units, usd } from "@/lib/format";
+import { basescanAddr, COHORTS, cohortById } from "@/lib/config";
+import { compactUsd, pct, short, units, usd } from "@/lib/format";
 import { useSession } from "@/lib/session";
 import { useLive } from "@/lib/useLive";
 import { loadLevels, loadWorld } from "@/lib/world";
@@ -71,22 +71,34 @@ function WorldSide() {
   return (
     <div className="rise grid gap-12 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
       <div className="min-w-0">
+        <p className="mb-4 text-[14px] leading-relaxed text-ink-2">
+          Every open loan on Morpho&apos;s {c.collateralSymbol} market, placed by how far {c.collateralSymbol} must fall before it is force sold. The taller the hill, the more debt a hunter can trigger by pushing the price there.
+        </p>
         <HunterMap
           levels={levels.levels}
           priceUsd={price}
           symbol={c.collateralSymbol}
           height={260}
-          markers={cohort?.pos.liquidationPrice ? [{ label: "Offmap cohort", price: cohort.pos.liquidationPrice, tone: "cohort" }] : []}
+          markers={cohort?.pos.liquidationPrice ? [{ label: "Offmap pool, everyone as one", price: cohort.pos.liquidationPrice, tone: "cohort" }] : []}
         />
       </div>
       <div>
         <p className="text-[19px] leading-snug text-ink">
-          Every glow on the left is someone&apos;s loan. Offmap is <span className="text-cold">one borrower</span> among them, holding everyone&apos;s loans in a single position.
+          A hunter reads this map for free. Offmap users are not on it: their loans sit inside <span className="text-cold">one pooled borrower</span>, so there is no single loan to aim at.
         </p>
         <div className="mt-6">
-          <Stat k={`Offmap cohort, ${c.label}`} v="1 borrower on Morpho" tone="cold" />
-          {cohort && <Stat k="Its collateral and debt, all users together" v={`${units(cohort.pos.collateral, c.collateralDecimals, 6)} ${c.collateralSymbol} · ${units(cohort.pos.borrowAssets, 6, 2)} USDC`} />}
-          <Stat k="Any single user inside it" v="not on any public record" />
+          <Stat k="Loans a hunter can see" v={`${levels.borrowers.toLocaleString()} · ${compactUsd(levels.borrowUsd)}`} tone="heat" />
+          <Stat k="Offmap users a hunter can see" v="0" tone="cold" />
+          {cohort && (
+            <div className="rule-t py-4">
+              <div className="eyebrow">What shows instead</div>
+              <p className="mt-2 text-[15px] leading-relaxed text-ink-2">
+                One borrower,{" "}
+                <a className="num text-cold underline decoration-white/20 underline-offset-4" href={basescanAddr(cohort.pos.address)} target="_blank" rel="noreferrer">{short(cohort.pos.address, 6, 4)}</a>
+                , holding {usd(cohort.pos.collateralUsd, 2)} of {c.collateralSymbol} against {usd(cohort.pos.debtUsd, 2)} for all Offmap users together. Who is inside and how much each owes is never published.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
