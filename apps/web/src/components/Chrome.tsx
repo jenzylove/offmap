@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useId } from "react";
 import { CONTRACT_ID, REPO_URL, nearblocksAddr } from "@/lib/config";
 import { short } from "@/lib/format";
 import { useSession } from "@/lib/session";
@@ -15,13 +15,23 @@ const NAV = [
 ];
 
 /** Contour rings opened at one point: a hot point left behind on the map, the cold center kept. */
+/** The mark: a map pin, hot like every public loan, with its cold point slipping off it. */
 export function Mark({ size = 24 }: { size?: number }) {
+  const id = useId().replace(/:/g, "");
   return (
-    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
-      <path d="M16 5a11 11 0 1 1 -10.4 7.4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      <path d="M16 10a6 6 0 1 1 -5.6 3.9" fill="none" stroke="currentColor" strokeOpacity=".55" strokeWidth="1.2" strokeLinecap="round" />
-      <circle cx="16" cy="16" r="2.6" fill="var(--cold)" />
-      <circle cx="6.6" cy="9.4" r="1.6" fill="var(--heat)" />
+    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true" className="overflow-visible">
+      <defs>
+        <linearGradient id={`mh${id}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#ffb15c" />
+          <stop offset=".55" stopColor="#ff5b1f" />
+          <stop offset="1" stopColor="#ff2d78" />
+        </linearGradient>
+      </defs>
+      <path d="M13 26.5C13 26.5 5.5 19 5.5 13.2a7.5 7.5 0 0 1 15 0C20.5 19 13 26.5 13 26.5Z" fill="none" stroke={`url(#mh${id})`} strokeWidth="2.4" strokeLinejoin="round" />
+      <circle cx="13" cy="13.2" r="2.2" fill="none" stroke={`url(#mh${id})`} strokeWidth="1.4" strokeDasharray="1.6 1.4" />
+      <circle cx="17.6" cy="9.6" r=".9" fill="var(--cold)" fillOpacity=".45" />
+      <circle cx="20.6" cy="7.9" r="1.1" fill="var(--cold)" fillOpacity=".7" />
+      <circle cx="24.6" cy="6.2" r="2.8" fill="var(--cold)" style={{ filter: "drop-shadow(0 0 4px rgba(127,233,255,.7))" }} />
     </svg>
   );
 }
@@ -106,10 +116,10 @@ export function Header() {
     return () => window.removeEventListener("scroll", f);
   }, []);
   return (
-    <header className="pointer-events-none fixed inset-x-0 top-0 z-40 px-3 pt-3 md:px-6 md:pt-4">
+    <header className={`pointer-events-none fixed inset-x-0 top-0 z-40 px-3 pt-3 pb-6 transition-[background] duration-500 md:px-6 md:pt-4 ${scrolled ? "bg-[linear-gradient(to_bottom,#0b0c0e_0%,rgba(11,12,14,0.92)_60%,transparent)]" : ""}`}>
       <div
         className={`pointer-events-auto mx-auto flex h-14 max-w-[1240px] items-center justify-between gap-3 rounded-full pl-4 pr-2 transition-all duration-500 md:pl-5 ${
-          scrolled || open ? "glass shadow-[0_20px_60px_-20px_rgba(0,0,0,0.8)]" : "border border-transparent"
+          scrolled || open ? "glass !bg-[rgba(16,18,21,0.94)] shadow-[0_20px_60px_-20px_rgba(0,0,0,0.8)]" : "border border-transparent"
         }`}
       >
         <Link href="/" className="flex items-center gap-2.5 text-ink" aria-label="Offmap home">

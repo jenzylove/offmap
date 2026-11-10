@@ -104,7 +104,7 @@ export default function Home() {
       <Section id="see">
         <Reveal>
           <SectionHead n="03" kicker="Before and after" title="Same loan. Two views.">
-            Read live from Base and from your own session. Flip between them.
+            Switch between what anyone can read about Offmap on Morpho and what only you can open.
           </SectionHead>
         </Reveal>
         <BeforeAfter />

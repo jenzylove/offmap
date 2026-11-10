@@ -28,8 +28,8 @@ export function BeforeAfter() {
       <div role="tablist" aria-label="Who is looking" className="inline-flex rounded-full p-1 ring-1 ring-white/10">
         {(
           [
-            ["world", "What the world sees"],
-            ["you", "What you see"],
+            ["world", "Public: what hunters see"],
+            ["you", "Private: only you"],
           ] as const
         ).map(([v, t]) => (
           <button
@@ -144,11 +144,12 @@ function YouSide() {
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_20%,rgba(127,233,255,0.10),transparent_60%)]" />
         <div className="relative">
           <div className="eyebrow">Your liquidation price</div>
-          <div className="mt-5 h-[clamp(48px,8vw,96px)] w-[70%] rounded-xl bg-[repeating-linear-gradient(90deg,rgba(127,233,255,0.18)_0_3px,transparent_3px_7px)]" />
-          {["Collateral", "Debt", "Health"].map((k, i) => (
+          <div className="display mt-4 select-none text-[clamp(48px,8vw,104px)] text-cold/25 blur-[6px]" aria-hidden="true">$48,109</div>
+          <div className="num mt-2 inline-flex items-center gap-2 rounded-full px-3 py-1 text-[12px] text-cold ring-1 ring-cold/30">locked to your wallet</div>
+          {["Collateral", "Debt", "Health"].map((k) => (
             <div key={k} className="mt-6 flex items-center justify-between rule-t pt-4 text-[14px] text-ink-2">
               <span>{k}</span>
-              <span className="redact" style={{ width: `${9 - i * 2}ch` }} />
+              <span className="num text-[13px] text-ink-3">opens when you sign</span>
             </div>
           ))}
         </div>

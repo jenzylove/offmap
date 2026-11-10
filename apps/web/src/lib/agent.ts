@@ -14,19 +14,23 @@ export const agentConfigured = AGENT_URL.length > 0;
 
 export async function agent<T>(path: string, init: RequestInit & { token?: string; timeoutMs?: number } = {}): Promise<T> {
   if (!agentConfigured) throw new AgentError("The Offmap agent address is not configured yet.", "not_configured");
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), init.timeoutMs ?? 12_000);
   const headers = new Headers(init.headers);
   if (init.body) headers.set("content-type", "application/json");
   if (init.token) headers.set("authorization", `Bearer ${init.token}`);
-  let r: Response;
-  try {
-    r = await fetch(`${AGENT_URL}${path}`, { ...init, headers, signal: ctrl.signal });
-  } catch {
-    throw new AgentError(`The Offmap agent at ${AGENT_URL} did not answer.`, "unreachable");
-  } finally {
-    clearTimeout(t);
+  let r: Response | undefined;
+  // The agent sits behind a sealed hardware gateway that is sometimes slow to wake: try twice before giving up.
+  for (let attempt = 0; attempt < 2 && !r; attempt++) {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), init.timeoutMs ?? 20_000);
+    try {
+      r = await fetch(`${AGENT_URL}${path}`, { ...init, headers, signal: ctrl.signal });
+    } catch {
+      /* retried once below */
+    } finally {
+      clearTimeout(t);
+    }
   }
+  if (!r) throw new AgentError("Offmap's agent is slow to answer right now. Give it a minute and try again.", "unreachable");
   const text = await r.text();
   let body: unknown = null;
   try {

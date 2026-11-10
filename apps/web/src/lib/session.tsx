@@ -108,7 +108,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       persist(o, r.token);
     } catch (e) {
       const msg = e instanceof AgentError ? e.message : String(e);
-      setNote(`Wallet connected, but the agent did not open a session: ${msg}`);
+      setNote(`Your wallet is connected, but your loan could not be opened yet. ${msg}`);
       persist(o, null);
     }
   }, []);

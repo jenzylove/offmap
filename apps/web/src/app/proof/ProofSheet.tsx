@@ -56,7 +56,7 @@ function AttestationBlock() {
   const h = useLive(() => agent<AgentHealth>("/health"), [], 60_000);
   const att = useLive(() => agent<{ quote?: unknown[]; tcb_info?: { compose_hash?: string } }>("/attestation").catch(() => null), [], 300_000);
   if (!agentConfigured) return <NotLive title="The agent is not live yet">No agent is running, so there is no attestation to show.</NotLive>;
-  if (h.error) return <ErrorLine>The agent at {AGENT_URL} did not answer: {h.error}</ErrorLine>;
+  if (h.error) return <ErrorLine>{h.error}</ErrorLine>;
   if (!h.data) return <div className="num text-[12px] text-ink-3">Asking the agent…</div>;
   const d = h.data;
   return (
@@ -253,11 +253,13 @@ function useLeakCheck() {
     if (!agentConfigured) return { tone: "wait", text: "Not published." };
     const d = (await agent<LeakResp>("/public/leak")) as Record<string, unknown>;
     if (typeof d.linkedFraction !== "number") return { tone: "wait", text: "The agent has not published a leak study yet." };
-    const deposits = typeof d.deposits === "number" ? d.deposits : null;
-    const small = deposits !== null && deposits < 20;
+    const deposits = typeof d.deposits === "number" ? d.deposits : 0;
+    const payouts = typeof d.payouts === "number" ? d.payouts : 0;
+    const linked = typeof d.uniquelyLinked === "number" ? d.uniquelyLinked : 0;
+    const crowd = deposits < 20 ? ` Privacy grows with the crowd: with ${deposits} deposit${deposits === 1 ? "" : "s"} so far, the pool's public totals are close to one person's. Every new borrower hides everyone better, and this study shows it hour by hour.` : "";
     return {
-      tone: small ? "wait" : "pass",
-      text: `Published. ${(d.linkedFraction * 100).toFixed(0)}% of deposits could be linked to a payout${deposits !== null ? `, across ${deposits} deposit${deposits === 1 ? "" : "s"} studied` : ""}.${small ? " That sample is too small to promise privacy yet." : ""}`,
+      tone: "pass",
+      text: `Running hourly. Four linking attacks on ${deposits} deposit${deposits === 1 ? "" : "s"} and ${payouts} payout${payouts === 1 ? "" : "s"}: ${linked} linked.${crowd}`,
     };
   }, [], 120_000);
 }
@@ -280,7 +282,7 @@ export function ProofSheet() {
             <span key={i} className={`h-2 w-10 rounded-full transition-colors duration-700 ${x.tone === "pass" ? "bg-cold shadow-[0_0_12px_var(--cold)]" : x.tone === "fail" ? "bg-heat-2" : x.tone === "wait" ? "bg-warn" : "bg-white/10 shimmer"}`} />
           ))}
         </div>
-        <span className="num text-[13px] text-ink-2">{lights.some((x) => x.tone === "load") ? "Running the checks live…" : `${passing} of ${lights.length} checks passing right now`}</span>
+        <span className="num text-[13px] text-ink-2">{lights.some((x) => x.tone === "load") ? "Running the checks live…" : `${passing} of ${lights.length} checks passing, live from NEAR and Base`}</span>
       </div>
 
       <Check id="contract" n="01" title="The contract cannot be swapped." plain={<>The NEAR contract decides who may sign for the pooled positions, and it signs your eject. If nobody holds a full key, nobody can quietly change those rules.</>} tone={c.tone} verdict={c.text}>

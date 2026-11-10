@@ -128,7 +128,7 @@ export function BorrowSetup({ token, wallet, tokens, tokensError, onStarted }: {
                   key={c.id}
                   type="button"
                   aria-pressed={on}
-                  onClick={() => setCohort(c)}
+                  onClick={() => { setCohort(c); setAssetId(""); setAmount(""); }}
                   className={`rounded-2xl p-4 text-left transition-all duration-300 sm:p-5 ${on ? "bg-cold/[0.08] ring-1 ring-cold/60" : "ring-1 ring-white/10 hover:ring-white/25"}`}
                 >
                   <div className="flex items-center justify-between">
@@ -252,7 +252,7 @@ export function BorrowSetup({ token, wallet, tokens, tokensError, onStarted }: {
           {asset && (refundDefault && !editRefund ? (
             <div className="flex flex-wrap items-center justify-between gap-3 rule-t pt-4">
               <span className="text-[15px] text-ink-2">
-                If the deposit cannot be used, it goes back to <span className="num text-ink">{short(refundDefault)}</span> on {chainName(asset.blockchain)}
+                Safety net: if a deposit cannot be converted (it arrives late, or the price moves too far), it is sent back to <span className="num text-ink">{short(refundDefault)}</span> on {chainName(asset.blockchain)}
               </span>
               <button className="ink-link text-[13px] text-ink-2" onClick={() => setEditRefund(true)}>
                 Change
@@ -260,7 +260,7 @@ export function BorrowSetup({ token, wallet, tokens, tokensError, onStarted }: {
             </div>
           ) : (
             <label className="block rule-t pt-4">
-              <span className="text-[13px] text-ink-2">Refund address on {chainName(asset.blockchain)}, if the deposit cannot be used</span>
+              <span className="text-[13px] text-ink-2">Where a deposit goes back to on {chainName(asset.blockchain)}, if it cannot be converted</span>
               <input className="field" value={refundAddr} onChange={(e) => setRefundAddr(e.target.value)} spellCheck={false} placeholder={asset.blockchain === "btc" ? "bc1…" : asset.blockchain === "sol" ? "Solana address" : asset.blockchain === "near" ? "you.near" : "0x…"} />
             </label>
           ))}
