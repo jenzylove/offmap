@@ -4,7 +4,9 @@
 
 # Offmap
 
-**Borrow off the map.** Private loans on real Morpho liquidity. Nobody can see your loan, your collateral or your liquidation price.
+**Your liquidation price is public. Offmap hides it.**
+
+Borrow USDC against your crypto on real Morpho liquidity, from any chain. Nobody can see your loan, your collateral or the price where you get liquidated.
 
 [![NEAR mainnet](https://img.shields.io/badge/NEAR-mainnet-00ec97)](https://nearblocks.io/address/offmapfi.near)
 [![Agent in Intel TDX](https://img.shields.io/badge/agent-Intel%20TDX%20on%20Phala-1f6feb)](https://b85acd75d1ee0d9a37241a18f68a6c55376b5e3a-8787.dstack-pha1-prod5.phala.network/health)
@@ -22,6 +24,8 @@
 
 Every loan on a public lending market is a target. Anyone can read your size, your collateral and the exact price where you get liquidated, and traders push price into those levels. Hiding who you are does not help: hunters don't need your name, they need your level.
 
+This already happens. In March 2025, 10x Research [warned](https://forklog.com/en/hyperliquid-opens-the-door-to-a-crowd-led-whale-hunt-says-10x-research/) that Hyperliquid's public positions and liquidation levels let groups of traders coordinate to push price into them. Lending markets publish the same thing. Open the [hunter view](https://offmap-ruby.vercel.app/hunter) to see the liquidation levels of the 500 largest Morpho borrowers, live, right now.
+
 ## What Offmap does
 
 You borrow through a few pooled positions on Morpho Blue (Base). The pool is run by an agent inside Intel TDX hardware, so your loan exists only in a private ledger that nobody can read, not us and not the host. The world sees one borrower per pool. You see your own loan.
@@ -38,6 +42,19 @@ pooled position on Morpho Blue (Base) ──  one borrower per cohort, real liqu
    ▼
 eject: any time, with your note, straight from the contract to your own Morpho position (works without the agent)
 ```
+
+## Why not just borrow on Morpho?
+
+Morpho is where the money sits. Offmap is the part Morpho can't give you: a loan nobody can see.
+
+| | On Morpho directly | Through Offmap |
+|---|---|---|
+| Your size, collateral and liquidation price | Public to anyone | Seen only by you. The world sees one pooled borrower per cohort |
+| When you get close to liquidation | Anyone can see it coming and liquidate you at a known price | Private liquidation inside the agent at 70% loan to value |
+| Getting money in and out | From Base, from a wallet tied to your position | Any chain in, any chain out through Confidential Intents, paid in round lots after random delays |
+| Liquidity and rates | Morpho | The same Morpho markets |
+| Cost | Morpho's borrow rate | Morpho's borrow rate plus 1% a year |
+| If the operator disappears | Not applicable | Eject from the contract to your own Morpho position, no agent needed |
 
 ## Why only here
 
@@ -105,6 +122,6 @@ Run locally: `pnpm install && pnpm -r test` (core, agent, web), `cd contracts/ne
 
 NEAR (contracts, chain signatures `v1.signer`, NEAR Intents and Confidential Intents through the 1Click API), Phala Cloud (Intel TDX, dstack), `@neardefi/shade-agent-js` and `shade-attestation`, Morpho Blue on Base, viem, Next.js, Foundry, cargo-near. Code was written with AI assistance (Claude Code), reviewed and tested by the author.
 
-The author's other NEAR HACKATHON project is **Q-DAY** ([github.com/jenzylove/qday](https://github.com/jenzylove/qday)), a memecoin game on NEAR's quantum safe keys.
+The author's other NEAR HACKATHON project is **KEYFALL** ([github.com/jenzylove/qday](https://github.com/jenzylove/qday)), a separate and independent memecoin game on NEAR's quantum safe keys. It was called Q-DAY during development.
 
 MIT licensed.
