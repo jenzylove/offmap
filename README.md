@@ -122,6 +122,5 @@ Run locally: `pnpm install && pnpm -r test` (core, agent, web), `cd contracts/ne
 
 NEAR (contracts, chain signatures `v1.signer`, NEAR Intents and Confidential Intents through the 1Click API), Phala Cloud (Intel TDX, dstack), `@neardefi/shade-agent-js` and `shade-attestation`, Morpho Blue on Base, viem, Next.js, Foundry, cargo-near. Code was written with AI assistance (Claude Code), reviewed and tested by the author.
 
-The author's other NEAR HACKATHON project is **KEYFALL** ([github.com/jenzylove/qday](https://github.com/jenzylove/qday)), a separate and independent memecoin game on NEAR's quantum safe keys. It was called Q-DAY during development.
-
+The author's other NEAR HACKATHON project is **KEYFALL** ([github.com/jenzylove/qday](https://github.com/jenzylove/qday)), a separate and independent memecoin game on NEAR's quantum safe keys.
 MIT licensed.
