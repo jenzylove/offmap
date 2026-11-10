@@ -36,6 +36,14 @@ declare global {
   }
 }
 
+/** Wallet errors in plain words: no library names or version strings. */
+function walletError(e: unknown): string {
+  const m = e instanceof Error ? ((e as { shortMessage?: string }).shortMessage ?? e.message) : String(e);
+  if (/reject|denied|cancel/i.test(m)) return "You cancelled in your wallet. Press the button again when you are ready.";
+  if (/no (injected|ethereum)|provider/i.test(m)) return "No browser wallet found. Install Rabby or MetaMask, then come back.";
+  return m.split(/Details:|Version:/)[0]!.trim();
+}
+
 function randomHex(bytes: number): string {
   const b = crypto.getRandomValues(new Uint8Array(bytes));
   return Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
@@ -123,7 +131,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setToken(null);
       persist(o, null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(walletError(e));
     } finally {
       setBusy(false);
     }
@@ -165,7 +173,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const signature = await client.signMessage({ account: address, message });
       await exchange(o, { address, nonce, deadline, signature });
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(walletError(e));
     } finally {
       setBusy(false);
     }

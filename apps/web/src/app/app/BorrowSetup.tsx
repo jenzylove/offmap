@@ -8,12 +8,35 @@ import { pct, short, toUnits, usd } from "@/lib/format";
 import { readLevels } from "@/lib/morpho";
 import { addressLooksValid, CHAIN_NAMES, collateralAssets, usdcTargets, type OneClickToken } from "@/lib/oneclick";
 import { useLive } from "@/lib/useLive";
+import { readBalance } from "@/lib/balance";
 import { loadWorld } from "@/lib/world";
 import { basescanAddr } from "@/lib/config";
 
 const chainName = (c: string) => CHAIN_NAMES[c] ?? c.toUpperCase();
 const isEvmChain = (c: string) => ["eth", "base", "arb", "op", "pol", "avax", "bsc", "gnosis"].includes(c);
-const FAMILY: Record<string, string[]> = { "cbbtc-usdc": ["cbBTC", "BTC", "wBTC"], "weth-usdc": ["ETH", "WETH"] };
+/** Deposit routes into each pool that NEAR Intents can fill today (checked against the live agent, Nov 10 2026). */
+const ROUTES: Record<string, string[]> = {
+  "cbbtc-usdc": [
+    "nep141:base-0xcbb7c0000ab88b473b1f5afd9ef808440eed33bf.omft.near",
+    "nep141:btc.omft.near",
+    "nep141:eth-0xcbb7c0000ab88b473b1f5afd9ef808440eed33bf.omft.near",
+    "nep141:eth-0x2260fac5e5542a773aa44fbcfedf7c193bc2c599.omft.near",
+  ],
+  "weth-usdc": ["nep141:base-0x4200000000000000000000000000000000000006.omft.near"],
+};
+const ROUTE_NOTE: Record<string, string> = {
+  "cbbtc-usdc": "Bitcoin, cbBTC on Base or Ethereum, or WBTC on Ethereum.",
+  "weth-usdc": "The ETH pool takes WETH on Base today. Holding plain ETH? Wrap it to WETH in your wallet first.",
+};
+/** Plain words for the errors a quote can come back with. */
+function quoteError(raw: string, what: string, chain: string): string {
+  const inner = /"message":"([^"]+)"/.exec(raw)?.[1] ?? raw;
+  if (/no liquidity|no_quote/i.test(inner)) return `There is no swap route for ${what} into the pool right now. Pick another source above.`;
+  if (/refundTo is not valid/i.test(inner)) return `That refund address does not look right for ${chain}.`;
+  if (/sign in first/i.test(inner)) return "Your session ended. Sign again in step 1.";
+  if (/borrow too large/i.test(inner)) return "That borrow is too large for this deposit. Move the slider left.";
+  return inner;
+}
 const CHOICE: Record<string, { name: string; sub: string }> = {
   "cbbtc-usdc": { name: "cbBTC", sub: "Bitcoin, held as cbBTC" },
   "weth-usdc": { name: "ETH", sub: "Ether, held as WETH" },
@@ -32,8 +55,8 @@ export function BorrowSetup({ token, wallet, tokens, tokensError, onStarted }: {
   const prices = useLive(() => Promise.all(COHORTS.map((c) => readLevels(c, 1).then((m) => m.priceUsd))), [], 300_000);
 
   const all = useMemo(() => collateralAssets(tokens), [tokens]);
-  const family = useMemo(() => all.filter((t) => FAMILY[cohort.id]!.includes(t.symbol)), [all, cohort.id]);
-  const others = useMemo(() => all.filter((t) => !FAMILY[cohort.id]!.includes(t.symbol)), [all, cohort.id]);
+  const family = useMemo(() => ROUTES[cohort.id]!.map((id) => all.find((t) => t.assetId === id)).filter((t): t is OneClickToken => !!t), [all, cohort.id]);
+  const others = useMemo(() => [] as OneClickToken[], []);
   const usdc = useMemo(() => usdcTargets(tokens), [tokens]);
 
   const [assetId, setAssetId] = useState("");
@@ -74,6 +97,11 @@ export function BorrowSetup({ token, wallet, tokens, tokensError, onStarted }: {
   const rate = market.data ? market.data.borrowApy + SPREAD_APR : null;
   const sliderPct = Math.min(60, Math.round(ltv * 1000) / 10);
 
+  const balance = useLive(async () => (asset && wallet.startsWith("0x") ? readBalance(asset.assetId, asset.decimals, wallet) : null), [asset?.assetId, wallet], 30_000);
+  // a sensible first borrow: 30% of the deposit, well away from liquidation
+  useEffect(() => {
+    if (value > 0 && !borrow) setBorrow((Math.floor(value * 0.3 * 100) / 100).toString());
+  }, [value, borrow]);
   const amountUnits = asset ? toUnits(amount, asset.decimals) : null;
   const borrowUnits = toUnits(borrow, 6);
   const problems: string[] = [];
@@ -84,7 +112,7 @@ export function BorrowSetup({ token, wallet, tokens, tokensError, onStarted }: {
   if (!recv) problems.push("Pick where to receive USDC.");
   else if (!addressLooksValid(recv.blockchain, recvAddr)) problems.push(`Enter a valid ${chainName(recv.blockchain)} address to receive USDC.`);
   if (asset && !addressLooksValid(asset.blockchain, refund)) problems.push(`Enter a ${chainName(asset.blockchain)} address for refunds.`);
-  if (!accept) problems.push("Tick the box about shared losses.");
+  if (!accept) problems.push("Tick the box to confirm you understand liquidation.");
 
   const submit = async () => {
     if (!asset || !recv || !amountUnits || !borrowUnits) return;
@@ -108,7 +136,7 @@ export function BorrowSetup({ token, wallet, tokens, tokensError, onStarted }: {
       if (!r?.depositAddress) throw new Error("The agent answered without a deposit address.");
       onStarted({ ...r, label: `${amount} ${asset.symbol} on ${chainName(asset.blockchain)}`, startedAt: Date.now(), cohort: cohort.id });
     } catch (e) {
-      setErr(e instanceof AgentError ? e.message : e instanceof Error ? e.message : String(e));
+      setErr(quoteError(e instanceof Error ? e.message : String(e), asset ? `${asset.symbol} on ${chainName(asset.blockchain)}` : "this asset", asset ? chainName(asset.blockchain) : "that chain"));
     } finally {
       setBusy(false);
     }
@@ -174,9 +202,20 @@ export function BorrowSetup({ token, wallet, tokens, tokensError, onStarted }: {
             <label className="block">
               <span className="text-[13px] text-ink-2">Amount {asset ? `(${asset.symbol})` : ""}</span>
               <input className="field text-[22px]" inputMode="decimal" placeholder="0.0" value={amount} onChange={(e) => setAmount(e.target.value.replace(",", "."))} data-testid="amount" />
-              <span className="num mt-1 block min-h-4 text-[11px] text-ink-3">{asset && value > 0 ? `worth ${usd(value)}` : asset ? `${usd(asset.price, asset.price > 100 ? 0 : 2)} per ${asset.symbol}` : ""}</span>
+              <span className="num mt-1 flex min-h-4 flex-wrap items-center justify-between gap-2 text-[11px] text-ink-3">
+                <span>{asset && value > 0 ? `worth ${usd(value)}` : asset ? `${usd(asset.price, asset.price > 100 ? 0 : 2)} per ${asset.symbol}` : ""}</span>
+                {balance.data && (
+                  <button type="button" className="text-cold hover:underline" onClick={() => setAmount(balance.data!.text)} data-testid="use-max">
+                    In your wallet: {balance.data.text} {asset?.symbol} · use max
+                  </button>
+                )}
+              </span>
+              {balance.data && amountUnits && amountUnits > balance.data.raw && (
+                <span className="mt-1 block text-[12px] text-warn">More than this wallet holds. You can still send it from another wallet.</span>
+              )}
             </label>
           </div>
+          <p className="mt-3 text-[13px] text-ink-3">{ROUTE_NOTE[cohort.id]}</p>
           {tokensError && (
             <div className="mt-4">
               <ErrorLine>Could not load the asset list from NEAR Intents: {tokensError}</ErrorLine>
@@ -186,7 +225,7 @@ export function BorrowSetup({ token, wallet, tokens, tokensError, onStarted }: {
 
         {/* borrow */}
         <fieldset>
-          <legend className="eyebrow mb-4">How much USDC</legend>
+          <legend className="eyebrow mb-4">How much USDC to borrow</legend>
           <div className="flex items-baseline gap-3">
             <input
               className="field max-w-[260px] text-[34px]"
@@ -210,11 +249,13 @@ export function BorrowSetup({ token, wallet, tokens, tokensError, onStarted }: {
             aria-label="Loan to value"
           />
           <div className="num mt-1 flex justify-between text-[11px] text-ink-3">
-            <span>0%</span>
-            <span className={ltv > OPEN_LTV ? "text-heat" : "text-ink-2"}>loan to value {ltv ? pct(ltv) : "0%"}</span>
-            <span>60% max</span>
+            <span>safer</span>
+            <span className={ltv > OPEN_LTV ? "text-heat" : "text-ink-2"}>{ltv ? `borrowing ${pct(ltv)} of your deposit's value` : "drag to choose"}</span>
+            <span>riskier · 60% max</span>
           </div>
-          {!value && <p className="mt-3 text-[13px] text-ink-3">Enter a deposit amount first to use the slider.</p>}
+          <p className="mt-3 text-[13px] text-ink-3">
+            {value ? "Type an amount or drag. The further right, the closer your liquidation price sits to today's price." : "Enter a deposit amount first to use the slider."}
+          </p>
         </fieldset>
 
         {/* receive and refunds */}
@@ -277,7 +318,7 @@ export function BorrowSetup({ token, wallet, tokens, tokensError, onStarted }: {
               {liq ? usd(liq, 0) : "$…"}
             </div>
             <p className="mt-2 text-[13px] text-ink-3">
-              {liq && cohortPrice ? `If ${cohort.collateralSymbol} falls ${pct(1 - liq / cohortPrice, 0)} from ${usd(cohortPrice, 0)}, a little is sold privately to bring you back to 60%. Only you will ever see this number.` : "Fill in a deposit and a borrow amount. Only you will ever see this number."}
+              {liq && cohortPrice ? `If ${cohort.collateralSymbol} falls to this price, ${pct(1 - liq / cohortPrice, 0)} below today's ${usd(cohortPrice, 0)}, part of your collateral is sold to cover the loan. Only you ever see this number.` : "Fill in a deposit and a borrow amount. Only you ever see this number."}
             </p>
             <dl className="num mt-6 text-[13px]">
               {[
@@ -294,7 +335,7 @@ export function BorrowSetup({ token, wallet, tokens, tokensError, onStarted }: {
             </dl>
             <label className="mt-6 flex cursor-pointer items-start gap-3 text-[13px] text-ink-2">
               <input type="checkbox" className="mt-0.5 h-4 w-4 flex-none accent-[var(--cold)]" checked={accept} onChange={(e) => setAccept(e.target.checked)} />
-              <span>I understand that if a private sale cannot cover a loan, the gap comes from that borrower, then the reserve, then the pooled position. This is an unaudited hackathon build.</span>
+              <span>I understand that if {cohort.collateralSymbol} falls to my liquidation price, part of my collateral is sold to repay the loan.</span>
             </label>
             <button className="btn btn-primary mt-6 w-full" disabled={problems.length > 0 || busy} onClick={submit} data-testid="confirm-borrow">
               {busy ? "Asking the agent…" : "Get my deposit address"}
@@ -302,7 +343,7 @@ export function BorrowSetup({ token, wallet, tokens, tokensError, onStarted }: {
             <p className="mt-3 min-h-5 text-[13px] text-ink-3" aria-live="polite">
               {problems[0] ?? "Nothing is sent yet. You get a one time address to deposit to."}
             </p>
-            {err && <ErrorLine>The agent refused: {err}</ErrorLine>}
+            {err && <ErrorLine>{err}</ErrorLine>}
           </div>
         </div>
         <PublicRecord pool={world.data?.positions.find((p) => p.kind === "cohort")?.pos ?? null} loading={!world.data} wallet={wallet} addValue={value} addDebt={b > 0 ? b : 0} />
@@ -328,7 +369,7 @@ function PublicRecord({ pool, loading, wallet, addValue, addDebt }: { pool: { ad
       {pool ? (
         <>
           <p className="mt-3 text-[13px] leading-relaxed text-ink-2">
-            Your loan is added inside one shared borrower. Only the attested agent can sign for it, and only inside a batch the NEAR contract opens.
+            Your loan joins one shared pool address on Morpho. Your wallet never shows up there.
           </p>
           <div className="num mt-4 flex items-center justify-between gap-3 text-[13px]">
             <span className="font-sans text-ink-2">Borrower on record</span>

@@ -19,7 +19,8 @@ export async function agent<T>(path: string, init: RequestInit & { token?: strin
   if (init.token) headers.set("authorization", `Bearer ${init.token}`);
   let r: Response | undefined;
   // The agent sits behind a sealed hardware gateway that is sometimes slow to wake: try twice before giving up.
-  for (let attempt = 0; attempt < 2 && !r; attempt++) {
+  const tries = !init.method || init.method === "GET" ? 2 : 1; // never resend a POST: it could open a second deposit
+  for (let attempt = 0; attempt < tries && !r; attempt++) {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), init.timeoutMs ?? 20_000);
     try {
