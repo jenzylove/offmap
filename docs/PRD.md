@@ -58,7 +58,7 @@ Everything below ships. Nothing is held for later.
 2. Only a registered, attested agent can request chain signatures for the cohort Base accounts.
 3. Stores the latest solvency statement per cohort: total collateral, total debt, reserve, Merkle root, leaf count, timestamp, agent signature.
 4. Rejects any signing request if the last solvency statement is older than a set limit, fails its checks, or would push a cohort over its cap or LTV ceiling.
-5. **Eject:** permissionless. The user submits their latest note, the leaf salt, a Merkle proof against the latest accepted root, and a Morpho authorization signed by their own Base wallet. The contract signs, through chain signatures, one call to the eject helper on Base (5.3.4). Each eject is signed immediately and can be done once per leaf; the cohort ceiling (50%) sits far below Morpho's liquidation line (86%), so ejects cannot push a cohort into danger.
+5. **Eject:** permissionless. The user submits their latest note, the leaf salt, a Merkle proof against the latest accepted root, and a Morpho authorization signed by their own Base wallet. The contract signs, through chain signatures, one call to the eject helper on Base (5.3.4). Each eject is signed immediately and can be done once per leaf; the cohort ceiling (55%) sits far below Morpho's liquidation line (86%), so ejects cannot push a cohort into danger.
 6. Recovery mode: if no statement arrives for a set time, anyone can switch the contract to recovery. It is permanent: signing and agent registration close, every agent key is removed from intents.near, and only eject stays open, so every user exits with their latest note.
 7. Full access keys removed after deploy. Source verified, reproducible build (NEP 330).
 
@@ -76,7 +76,7 @@ Everything below ships. Nothing is held for later.
 
 1. Morpho Blue markets with deep USDC liquidity (WETH/USDC and cbBTC/USDC, chosen in the spike by liquidity and rate). One cohort per market at launch.
 2. Supply collateral, borrow and repay USDC from each cohort's chain signatures account.
-3. Each cohort is held below a hard ceiling far under Morpho's liquidation line (target: cohort loan to value at most 50% while the market's line is 86%) and below a size cap set from market depth.
+3. Each cohort is held below a hard ceiling far under Morpho's liquidation line (target: cohort loan to value at most 55% while the market's line is 86%) and below a size cap set from market depth.
 4. **Eject helper**, an immutable contract on Base. In one transaction it takes a Morpho flash loan, repays the user's debt share on the cohort position, withdraws their collateral share, supplies it to the user's own position, borrows the same debt there, and repays the flash loan. It acts only with the cohort's chain signatures authorization and the user's own Morpho authorization.
 
 ### 5.4 Money in and out (NEAR Intents)

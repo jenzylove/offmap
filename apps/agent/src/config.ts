@@ -27,7 +27,7 @@ export const COHORTS: CohortConfig[] = [
     collateralDecimals: 8,
     loanDecimals: 6,
     lltvBps: 8600n,
-    cohortCeilingBps: 5000n,
+    cohortCeilingBps: 5500n,
     sizeCapLoan: 5_000_000_000n, // 5,000 USDC during the hackathon
     marketId: "0x9103c3b4e834476c9a62ea009ba2c884ee42e94e6e314a26f04d312434191836",
     collateralToken: "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
@@ -41,7 +41,7 @@ export const COHORTS: CohortConfig[] = [
     collateralDecimals: 18,
     loanDecimals: 6,
     lltvBps: 8600n,
-    cohortCeilingBps: 5000n,
+    cohortCeilingBps: 5500n,
     sizeCapLoan: 5_000_000_000n,
     marketId: "0x8793cf302b8ffd655ab97bd1c695dbd967807e8367a65cb2f4edaf1380ba1bda",
     collateralToken: "0x4200000000000000000000000000000000000006",
