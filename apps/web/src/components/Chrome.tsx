@@ -47,8 +47,8 @@ export function WalletButton({ compact = false }: { compact?: boolean }) {
   if (!s.owner)
     return (
       <div className="relative">
-        <button className="btn btn-primary btn-sm" disabled={s.busy} onClick={() => void s.connect()} data-testid="nav-connect">
-          {s.busy ? "Opening wallet" : "Connect wallet"}
+        <button className="btn btn-primary btn-sm" disabled={s.busy} onClick={() => void s.signInEvm()} data-testid="nav-connect">
+          {s.busy ? "Check your wallet" : "Connect wallet"}
         </button>
         {s.error && (
           <div className="glass absolute right-0 top-12 z-50 w-[280px] rounded-2xl p-4 text-[13px] text-ink-2" role="alert">
@@ -69,7 +69,7 @@ export function WalletButton({ compact = false }: { compact?: boolean }) {
       >
         <span className={s.token ? "dot dot-cold" : "dot dot-off"} />
         <span className="num normal-case tracking-normal">{addr}</span>
-        {!compact && !s.token && <span className="text-ink-3">· sign in</span>}
+        {!compact && !s.token && <span className="text-ink-3">· locked</span>}
       </button>
       {open && (
         <div className="glass absolute right-0 top-12 z-50 w-[260px] rounded-2xl p-2">
@@ -79,7 +79,7 @@ export function WalletButton({ compact = false }: { compact?: boolean }) {
           </div>
           {!s.token && (
             <button className="flex min-h-11 w-full items-center rounded-xl px-3 text-left text-[14px] text-cold hover:bg-white/5" disabled={s.busy} onClick={() => void s.signInEvm()}>
-              {s.busy ? "Waiting for your wallet" : "Sign in (free signature)"}
+              {s.busy ? "Check your wallet" : "Sign to open your loan"}
             </button>
           )}
           <Link href="/app" className="flex min-h-11 items-center rounded-xl px-3 text-[14px] hover:bg-white/5">

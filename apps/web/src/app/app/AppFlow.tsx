@@ -13,7 +13,7 @@ import { useLive } from "@/lib/useLive";
 import { BorrowSetup, type StartedDeposit } from "./BorrowSetup";
 import { LoanView } from "./LoanView";
 
-const STEPS = ["Connect", "Sign in", "Set up", "Deposit", "Your loan"];
+const STEPS = ["Connect", "Set up", "Deposit", "Your loan"];
 const DKEY = "offmap.deposit";
 
 function Stepper({ current }: { current: number }) {
@@ -33,7 +33,7 @@ function Stepper({ current }: { current: number }) {
           ))}
         </div>
       </div>
-      <ol className="hidden grid-cols-5 gap-3 md:grid" aria-label="Progress">
+      <ol className="hidden grid-cols-4 gap-3 md:grid" aria-label="Progress">
         {STEPS.map((s, i) => {
           const done = i < current;
           const on = i === current;
@@ -170,19 +170,36 @@ export function AppFlow() {
 
   if (!s.ready) return <Shell step={0}>{null}</Shell>;
 
-  /* 1. connect */
-  if (!s.owner)
+  /* 1. connect: one click connects the wallet and asks for the one free signature */
+  if (!s.token)
     return (
       <Shell step={0}>
         <StepHead title="Connect your wallet.">
-          Any browser wallet that works with Ethereum or Base, such as MetaMask, Rabby or Coinbase Wallet. Your loan belongs to this wallet, and it is where an eject would send your position.
+          Your wallet will ask for one signature. It is free, sends no transaction and moves nothing. It proves the wallet is yours, so the private loan opens for you and nobody else.
         </StepHead>
         <div className="flex flex-wrap items-center gap-4">
-          <button className="btn btn-primary" disabled={s.busy} onClick={() => void s.connect()} data-testid="connect">
-            {s.busy ? "Opening your wallet…" : "Connect wallet"}
+          <button className="btn btn-primary" disabled={s.busy || !agentConfigured} onClick={() => void s.signInEvm()} data-testid="connect">
+            {s.busy ? "Check your wallet…" : s.owner ? "Sign to open your loan" : "Connect wallet"}
           </button>
-          <span className="text-[14px] text-ink-3">Connecting only shares your address. Nothing is signed yet.</span>
+          {s.owner && (
+            <>
+              <span className="num flex items-center gap-2 text-[13px] text-ink-2">
+                <span className="dot dot-off" />
+                {short(s.owner.kind === "evm" ? s.owner.address : s.owner.accountId, 6, 4)}
+              </span>
+              <button className="ink-link text-[14px]" onClick={s.signOut}>
+                Use another wallet
+              </button>
+            </>
+          )}
         </div>
+        <p className="mt-4 max-w-xl text-[14px] text-ink-3">
+          Why a signature? On normal lending apps anyone can read your loan from your address. Here your loan is off the public record, so it only opens for whoever holds the wallet.
+        </p>
+        <details className="mt-4 max-w-xl text-[13px] text-ink-3">
+          <summary className="cursor-pointer select-none">Details: the exact message you sign</summary>
+          <SignMessage className="mt-3 rounded-xl bg-black/40 p-4" />
+        </details>
         {!hasWallet && (
           <p className="mt-6 max-w-xl text-[15px] text-ink-2">
             No browser wallet found in this browser. Install one such as{" "}
@@ -196,55 +213,21 @@ export function AppFlow() {
             , then come back.
           </p>
         )}
-        {s.error && (
-          <div className="mt-6">
-            <ErrorLine>{s.error}</ErrorLine>
+        {(s.error || s.note) && (
+          <div className="mt-6 max-w-xl">
+            <ErrorLine>{s.error ?? s.note}</ErrorLine>
           </div>
         )}
         <Ahead />
       </Shell>
     );
 
-  const wallet = s.owner.kind === "evm" ? s.owner.address : s.owner.accountId;
-
-  /* 2. sign in */
-  if (!s.token)
-    return (
-      <Shell step={1}>
-        <StepHead title="Sign in with one signature.">Free, no gas, and it moves nothing. It proves to the Offmap agent that this wallet is yours, so it can open your private ledger.</StepHead>
-        <div className="max-w-xl rounded-[24px] p-6 ring-1 ring-white/10">
-          <div className="flex items-center justify-between gap-3">
-            <span className="eyebrow">Connected</span>
-            <span className="num flex items-center gap-2 text-[13px] text-ink">
-              <span className="dot dot-off" />
-              {short(wallet, 8, 6)}
-            </span>
-          </div>
-          <div className="mt-5 rule-t pt-5">
-            <div className="eyebrow">Your wallet will show</div>
-            <SignMessage className="mt-2" />
-          </div>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <button className="btn btn-primary" disabled={s.busy || !agentConfigured} onClick={() => void s.signInEvm()} data-testid="sign-in">
-              {s.busy ? "Waiting for your wallet…" : "Sign in"}
-            </button>
-            <button className="btn" onClick={s.signOut}>
-              Use another wallet
-            </button>
-          </div>
-        </div>
-        {(s.error || s.note) && (
-          <div className="mt-6 max-w-xl">
-            <ErrorLine>{s.error ?? s.note}</ErrorLine>
-          </div>
-        )}
-      </Shell>
-    );
+  const wallet = s.owner ? (s.owner.kind === "evm" ? s.owner.address : s.owner.accountId) : "";
 
   /* waiting for the private ledger */
   if (!pos.data)
     return (
-      <Shell step={2}>
+      <Shell step={1}>
         {pos.error && !expired ? (
           <>
             <StepHead title="The agent did not answer.">Your session is open, but the private ledger could not be read just now.</StepHead>
@@ -270,7 +253,7 @@ export function AppFlow() {
   const live = started ?? (loans.length === 0 && pendingDeposit ? { depositAddress: pendingDeposit.depositAddress, label: "", startedAt: 0, cohort: "" } : null);
   if (live)
     return (
-      <Shell step={3}>
+      <Shell step={2}>
         <DepositStep d={live} positions={positions} onLoan={clear} onReset={clear} />
       </Shell>
     );
@@ -278,7 +261,7 @@ export function AppFlow() {
   /* 5. your loan */
   if (loans.length)
     return (
-      <Shell step={4}>
+      <Shell step={3}>
         <StepHead title="Your loan.">
           Read from the private ledger for your signature only. Morpho and every explorer see one pooled borrower, never you.
         </StepHead>
@@ -293,7 +276,7 @@ export function AppFlow() {
 
   /* 3. set up a new loan */
   return (
-    <Shell step={2}>
+    <Shell step={1}>
       <StepHead title="Set up your loan.">Pick your collateral, how much to deposit and how much USDC to borrow. You will see your liquidation price before anything is sent.</StepHead>
       <BorrowSetup token={s.token} wallet={wallet} tokens={tokens.data ?? []} tokensError={tokens.error} onStarted={start} />
     </Shell>
@@ -304,9 +287,8 @@ function Ahead() {
   return (
     <div className="mt-20 rule-t pt-10">
       <div className="eyebrow mb-6">What happens next</div>
-      <ol className="grid gap-6 md:grid-cols-4">
+      <ol className="grid gap-6 md:grid-cols-3">
         {[
-          ["Sign in", "One free signature."],
           ["Set up", "Collateral, amount, USDC to borrow."],
           ["Deposit", "From any chain, to a one time address."],
           ["Your loan", "USDC arrives. Only you can see the loan."],
