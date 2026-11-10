@@ -18,9 +18,17 @@ const cred = JSON.parse(fs.readFileSync(path.join(dir, fs.readdirSync(dir).find(
 const kp = KeyPair.fromString(cred.private_key as KeyPairString);
 const provider = new JsonRpcProvider({ url: "https://rpc.mainnet.fastnear.com" });
 const builder = new Account(cred.implicit_account_id, provider, new KeyPairSigner(kp));
-const contract = new Account(CONTRACT, provider, new KeyPairSigner(kp));
+// The contract account holds only a restricted key now (owner methods only); use it when present.
+const restrictedFile = path.join(os.homedir(), ".offmap-secrets", "offmapfi-restricted.json");
+const contractKey = fs.existsSync(restrictedFile) ? KeyPair.fromString(JSON.parse(fs.readFileSync(restrictedFile, "utf8")).private_key) : kp;
+const contract = new Account(CONTRACT, provider, new KeyPairSigner(contractKey));
 
 const m = JSON.parse(fs.readFileSync("../../contracts/near/deploy/measurements.json", "utf8"));
+// --keep-current also keeps the measurements approved on chain now, so the running agent stays valid until it is replaced.
+const live: any = await provider.query({ request_type: "call_function", finality: "final", account_id: CONTRACT, method_name: "config", args_base64: Buffer.from("{}").toString("base64") } as any);
+const liveMeasurements: any[] = JSON.parse(Buffer.from(live.result).toString()).approved_measurements ?? [];
+const sameM = (a: any, b: any) => JSON.stringify(a) === JSON.stringify(b);
+const approved = process.argv.includes("--keep-current") ? [...liveMeasurements.filter((x) => !sameM(x, m.measurements)), m.measurements] : [m.measurements];
 const cohorts = [];
 for (const c of COHORTS) {
   const p = await marketParams(c);
@@ -29,7 +37,7 @@ for (const c of COHORTS) {
 }
 const config = {
   mpc_contract_id: "v1.signer", intents_contract: "intents.near", cohorts,
-  approved_measurements: [m.measurements], approved_ppids: m.ppids.filter((p: string) => p && p.length === 32),
+  approved_measurements: approved, approved_ppids: m.ppids.filter((p: string) => p && p.length === 32),
   attestation_expiry_ms: String(7 * 24 * 3600e3), statement_max_age_ms: String(30 * 60e3), recovery_delay_ms: String(3 * 24 * 3600e3),
   eject_min_gas_limit: "300000", eject_max_gas_limit: "3000000", eject_max_fee_per_gas: "50000000000", dev_mode: false, dev_agents: [],
 };
@@ -51,12 +59,12 @@ if (process.argv.includes("--set-config-legacy")) {
 }
 if (process.argv.includes("--propose-config")) {
   // Config changes are public first: anyone can apply this one after the contract's 24h notice period.
-  const r = await contract.signAndSendTransaction({ receiverId: CONTRACT, actions: [actionCreators.functionCall("propose_config", Buffer.from(JSON.stringify({ config })), 100_000_000_000_000n, 0n)] });
+  const r = await contract.signAndSendTransaction({ receiverId: CONTRACT, actions: [actionCreators.functionCall("propose_config", Buffer.from(JSON.stringify({ config })), 30_000_000_000_000n, 0n)] });
   console.log("propose_config", r.transaction.hash, JSON.stringify(r.status).slice(0, 160));
   process.exit(0);
 }
 if (process.argv.includes("--apply-config")) {
-  const r = await contract.signAndSendTransaction({ receiverId: CONTRACT, actions: [actionCreators.functionCall("apply_config", Buffer.from("{}"), 100_000_000_000_000n, 0n)] });
+  const r = await contract.signAndSendTransaction({ receiverId: CONTRACT, actions: [actionCreators.functionCall("apply_config", Buffer.from("{}"), 30_000_000_000_000n, 0n)] });
   console.log("apply_config", r.transaction.hash, JSON.stringify(r.status).slice(0, 160));
   process.exit(0);
 }
@@ -74,6 +82,6 @@ if (!exists) {
 }
 const out = await contract.signAndSendTransaction({ receiverId: CONTRACT, actions: [
   actionCreators.deployContract(wasm),
-  actionCreators.functionCall("new", Buffer.from(JSON.stringify({ config })), 100_000_000_000_000n, 0n),
+  actionCreators.functionCall("new", Buffer.from(JSON.stringify({ config })), 30_000_000_000_000n, 0n),
 ] });
 console.log("deploy + new", out.transaction.hash, JSON.stringify(out.status).slice(0, 200));

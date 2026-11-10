@@ -167,7 +167,7 @@ async function commitBatch(id: Identity, s: State, c: CohortConfig, addr: Addres
   // root is computed, so the posted root and every note agree.
   for (const u of s.retouch?.[c.id] ?? []) { const p = res.ledger.positions.get(u); if (p) { p.nonce += 1n; p.salt = randomSalt(); } }
   // The statement goes on chain before any money moves.
-  const { batchId, statementTx } = await postStatement(id, s, c, res.ledger, price, addr);
+  const { batchId, statementTx } = await postStatement(id, s, c, res.ledger, price, addr, applyBatch(ledger, [], { price, timestamp: now, aprBps: 600n, risk, saltFor: () => randomSalt() }).ledger);
   if (s.retouch) s.retouch[c.id] = [];
   if (s.rootDirty) s.rootDirty[c.id] = false;
   s.ledgers[c.id] = res.ledger;
@@ -300,7 +300,7 @@ function needsSigning(plan: Plan) {
 }
 
 /** Publishes the solvency statement for a ledger on the contract. Returns the batch id and commitment. */
-async function postStatement(id: Identity, s: State, c: CohortConfig, ledger: State["ledgers"][string], price: bigint, addr: Address) {
+async function postStatement(id: Identity, s: State, c: CohortConfig, ledger: State["ledgers"][string], price: bigint, addr: Address, before: State["ledgers"][string] = ledger) {
   const batchId = String(++s.batchCounter[c.id]!);
   const cm = commit(ledger);
   const stmt = buildStatement(ledger, cm, batchId, Date.now());
@@ -311,7 +311,16 @@ async function postStatement(id: Identity, s: State, c: CohortConfig, ledger: St
     // while this batch's borrow or repay is still running on Morpho.
     const m = await base.marketTotals(c);
     const onchain = await base.position(c, addr);
-    const shares = m.borrowAssets > 0n ? (t.debt * m.borrowShares + m.borrowAssets - 1n) / m.borrowAssets : onchain.borrowShares;
+    const want = m.borrowAssets > 0n ? (t.debt * m.borrowShares + m.borrowAssets - 1n) / m.borrowAssets : onchain.borrowShares;
+    // The ledger charges the spread on top of Morpho's rate, so ledger debt runs ahead of the cohort's real
+    // Morpho debt. Never publish more shares than the cohort will hold once this batch's own moves land
+    // (borrows add at least floor shares, repays remove at most ceil shares), or the last user's eject
+    // would try to repay more shares than exist and revert. Spare debt stays with the pool, covered by the spread.
+    const net = t.debt - totals(before).debt;
+    const room = m.borrowAssets === 0n ? onchain.borrowShares
+      : net >= 0n ? onchain.borrowShares + (net * m.borrowShares) / m.borrowAssets
+      : onchain.borrowShares - ((-net) * m.borrowShares + m.borrowAssets - 1n) / m.borrowAssets;
+    const shares = want < room ? want : room > 0n ? room : t.debt > 0n ? 1n : 0n;
     const r: any = await id.callContract("submit_statement", { stmt: {
       cohort_id: c.id, batch_id: batchId, total_collateral: t.collateral.toString(), total_debt: t.debt.toString(),
       reserve: ledger.reserve.toString(), collateral_value_loan: collateralValue(t.collateral, price, c).toString(),
