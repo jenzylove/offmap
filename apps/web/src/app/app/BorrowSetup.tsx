@@ -108,6 +108,7 @@ export function BorrowSetup({ token, wallet, tokens, tokensError, onStarted }: {
   if (!asset) problems.push("Pick what you deposit.");
   else if (!amountUnits) problems.push("Enter how much you deposit.");
   if (!borrowUnits) problems.push("Choose how much USDC to borrow.");
+  else if (borrowUnits < 250_000n) problems.push("Borrow at least 0.25 USDC: smaller amounts cannot be bridged out.");
   if (ltv > OPEN_LTV) problems.push(`That is ${pct(ltv)} of your collateral. You can open at 60% at most.`);
   if (!recv) problems.push("Pick where to receive USDC.");
   else if (!addressLooksValid(recv.blockchain, recvAddr)) problems.push(`Enter a valid ${chainName(recv.blockchain)} address to receive USDC.`);

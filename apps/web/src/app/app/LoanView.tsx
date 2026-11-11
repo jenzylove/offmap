@@ -164,7 +164,8 @@ function RequestForm({ token, c, tokens, kind, wallet, onDone }: { token: string
   }, [asset, wallet, addr]);
   const decimals = kind === "borrow" ? 6 : c.collateralDecimals;
   const amt = toUnits(amount, decimals);
-  const ok = asset && amt && addressLooksValid(asset.blockchain, addr);
+  const tooSmall = kind === "borrow" && !!amt && amt < 250_000n;
+  const ok = asset && amt && !tooSmall && addressLooksValid(asset.blockchain, addr);
   return (
     <div>
       <p className="max-w-xl text-ink-2">
@@ -174,6 +175,7 @@ function RequestForm({ token, c, tokens, kind, wallet, onDone }: { token: string
         <label className="block">
           <span className="text-[13px] text-ink-2">Amount ({kind === "borrow" ? "USDC" : c.collateralSymbol})</span>
           <input className="field" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value.replace(",", "."))} placeholder="0.0" />
+        {tooSmall && <span className="mt-1 block text-[12px] text-warn">Borrow at least 0.25 USDC: smaller amounts cannot be bridged out.</span>}
         </label>
         <TokenSelect list={list} value={assetId} onChange={setAssetId} label="Receive as" />
       </div>
