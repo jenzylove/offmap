@@ -218,7 +218,7 @@ function useContractCheck() {
     const s = await contractState();
     if (s.kind !== "live") return { tone: "fail", text: s.kind === "error" ? `Could not read ${CONTRACT_ID}.` : `${CONTRACT_ID} is not deployed.` };
     if (s.fullAccessKeys > 0) return { tone: "wait", text: `${CONTRACT_ID} is live, but an owner key can still replace its code.` };
-    return { tone: "pass", text: `${CONTRACT_ID} is live on NEAR mainnet and nobody holds a key that can replace its code.` };
+    return { tone: "pass", text: `${CONTRACT_ID} is live on NEAR mainnet with no full access key. Its code can only change through a 48 hour public wind down that needs every pool empty; new agent code waits 24 hours in public.` };
   }, [], 60_000);
 }
 
@@ -256,10 +256,12 @@ function useLeakCheck() {
     const deposits = typeof d.deposits === "number" ? d.deposits : 0;
     const payouts = typeof d.payouts === "number" ? d.payouts : 0;
     const linked = typeof d.uniquelyLinked === "number" ? d.uniquelyLinked : 0;
-    const crowd = deposits < 20 ? ` Privacy grows with the crowd: with ${deposits} deposit${deposits === 1 ? "" : "s"} so far, the pool's public totals are close to one person's. Every new borrower hides everyone better, and this study shows it hour by hour.` : "";
+    const lvl = (d.levelAttack ?? {}) as { movingBatches?: number; batchesExposingOneUser?: number };
+    const single = typeof lvl.movingBatches === "number" && lvl.movingBatches > 0 ? ` ${lvl.batchesExposingOneUser ?? 0} of ${lvl.movingBatches} batches that moved money carried a single borrower, so those batch totals were that borrower's.` : "";
+    const crowd = deposits < 20 ? ` Privacy grows with the crowd: every new borrower hides everyone better, and this study shows it hour by hour.` : "";
     return {
       tone: "pass",
-      text: `Running hourly. Four linking attacks on ${deposits} deposit${deposits === 1 ? "" : "s"} and ${payouts} payout${payouts === 1 ? "" : "s"}: ${linked} linked.${crowd}`,
+      text: `Running hourly. Linking attacks on ${deposits} deposit${deposits === 1 ? "" : "s"} and ${payouts} payout${payouts === 1 ? "" : "s"}: ${linked} linked by amount, timing or address.${single}${crowd}`,
     };
   }, [], 120_000);
 }

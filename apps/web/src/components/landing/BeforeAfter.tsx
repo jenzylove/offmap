@@ -95,7 +95,7 @@ function WorldSide() {
               <p className="mt-2 text-[15px] leading-relaxed text-ink-2">
                 One borrower,{" "}
                 <a className="num text-cold underline decoration-white/20 underline-offset-4" href={basescanAddr(cohort.pos.address)} target="_blank" rel="noreferrer">{short(cohort.pos.address, 6, 4)}</a>
-                , holding {usd(cohort.pos.collateralUsd, 2)} of {c.collateralSymbol} against {usd(cohort.pos.debtUsd, 2)} for all Offmap users together. Who is inside and how much each owes is never published.
+                , holding {usd(cohort.pos.collateralUsd, 2)} of {c.collateralSymbol} against {usd(cohort.pos.debtUsd, 2)} for all Offmap users together. Who is inside and how much each owes is never published. With few borrowers these totals say a lot about each one; every new borrower blurs them further.
               </p>
             </div>
           )}

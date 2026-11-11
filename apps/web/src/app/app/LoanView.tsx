@@ -83,7 +83,7 @@ function Repay({ token, c, tokens, wallet, positions }: { token: string; c: Coho
   if (dep) return <RepayTracker dep={dep} positions={positions} />;
   return (
     <div>
-      <p className="max-w-xl text-ink-2">Pay back from any chain. It lands in your private balance as USDC and repays your loan in the next batch.</p>
+      <p className="max-w-xl text-ink-2">Pay back in USDC from NEAR, Ethereum, Base, Arbitrum, Optimism or Solana. It lands in your private balance as USDC and repays your loan in the next batch.</p>
       <div className="mt-6 grid gap-6 sm:grid-cols-2">
         <TokenSelect list={list} value={assetId} onChange={setAssetId} label="Pay with" />
         <label className="block">

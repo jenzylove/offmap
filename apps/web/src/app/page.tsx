@@ -38,8 +38,8 @@ const TRUST: FocusItem[] = [
 const NEAR: FocusItem[] = [
   {
     tag: "NEAR Intents",
-    t: "Any chain in, any chain out.",
-    d: "Deposits from Bitcoin, Ethereum, Solana and other chains are converted through NEAR Intents into a private balance. Your USDC leaves the same way, to the chain you pick.",
+    t: "Bitcoin or ETH in, USDC out where you want it.",
+    d: "Collateral comes in from Bitcoin, Base or Ethereum through NEAR Intents into a private balance. Your USDC leaves the same way, to NEAR, Ethereum, Base, Arbitrum, Optimism or Solana.",
     href: "/proof",
     cta: "See it live",
   },

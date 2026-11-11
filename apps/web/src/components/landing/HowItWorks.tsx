@@ -12,9 +12,9 @@ const STEPS: { t: string; d: string; tag: string; visual: () => ReactNode }[] = 
     visual: () => <SignVisual />,
   },
   {
-    t: "Deposit cbBTC or ETH from any chain",
+    t: "Deposit Bitcoin or ETH",
     tag: "through NEAR Intents",
-    d: "Send from the chain you already hold it on: Bitcoin, Ethereum, Solana, Arbitrum, Base, NEAR and more. It is converted on the way and lands in a private balance, not in a public wallet tied to you.",
+    d: "Send BTC, cbBTC or WBTC from Bitcoin, Base or Ethereum, or WETH on Base. It lands in a private balance, not in a public wallet tied to you.",
     visual: () => <DepositVisual />,
   },
   {
@@ -93,7 +93,7 @@ function SignVisual() {
 }
 
 function DepositVisual() {
-  const from = ["Bitcoin", "Ethereum", "Solana", "Arbitrum", "Base", "NEAR"];
+  const from = ["Bitcoin", "cbBTC · Base", "cbBTC · Ethereum", "WBTC · Ethereum", "WETH · Base"];
   return (
     <div className="relative grid w-full max-w-[420px] grid-cols-[1fr_auto_1fr] items-center gap-4">
       <ul className="space-y-2">
@@ -145,7 +145,7 @@ function ManageVisual() {
   return (
     <div className="w-full max-w-[360px] space-y-3">
       {[
-        ["Repay", "from any chain"],
+        ["Repay", "in USDC from six chains"],
         ["Borrow more or withdraw", "within 60% of your collateral"],
         ["Eject", "to a Morpho position at your own wallet"],
       ].map(([a, b], i) => (

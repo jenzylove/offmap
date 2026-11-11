@@ -290,7 +290,7 @@ function Ahead() {
       <ol className="grid gap-6 md:grid-cols-3">
         {[
           ["Set up", "Collateral, amount, USDC to borrow."],
-          ["Deposit", "From any chain, to a one time address."],
+          ["Deposit", "From Bitcoin, Base or Ethereum, to a one time address."],
           ["Your loan", "USDC arrives. Only you can see the loan."],
         ].map(([t, d], i) => (
           <li key={t} className="text-[14px]">

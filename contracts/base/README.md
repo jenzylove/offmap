@@ -1,66 +1,16 @@
-## Foundry
+# EjectHelper (Base)
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+Moves one user's share out of a pooled Offmap cohort position on Morpho Blue into a position owned by the user's own wallet, in one transaction, using a Morpho flash loan. No owner, no upgrade path. Only the cohort account (a NEAR chain signatures address) can start an eject from its own position, and the user's side needs a one time Morpho authorization plus a matching revocation, both used inside the same call.
 
-Foundry consists of:
+Live on Base: [0x262fe96b235be762dca8cc1937a542848e12f8b8](https://basescan.org/address/0x262fe96b235be762dca8cc1937a542848e12f8b8) (source verified).
 
-- **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
-- **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
-- **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
-- **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+## Build and test
 
-## Documentation
-
-https://book.getfoundry.sh/
-
-## Usage
-
-### Build
-
-```shell
-$ forge build
+```sh
+cd contracts/base
+forge install foundry-rs/forge-std@v1.17.0 --no-git   # once; lib/ is not committed
+forge build
+forge test --fork-url https://mainnet.base.org        # runs the eject against real Morpho state on a Base fork
 ```
 
-### Test
-
-```shell
-$ forge test
-```
-
-### Format
-
-```shell
-$ forge fmt
-```
-
-### Gas Snapshots
-
-```shell
-$ forge snapshot
-```
-
-### Anvil
-
-```shell
-$ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+Files: `src/EjectHelper.sol` (the helper), `src/IMorpho.sol` (the Morpho Blue interface it calls), `test/EjectHelper.t.sol` (fork test).

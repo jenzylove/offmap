@@ -44,7 +44,7 @@ export function Hero() {
             Borrow without becoming a <span className="text-heat-grad">target.</span>
           </h1>
           <p className="rise mt-7 max-w-[34rem] text-[17px] leading-relaxed text-ink-2 md:text-[19px]" style={{ animationDelay: "160ms" }}>
-            Deposit cbBTC or ETH from any chain and borrow USDC from Morpho&apos;s lenders. Your loan, your collateral and your liquidation price never appear on the public map.
+            Deposit Bitcoin or ETH and borrow USDC from Morpho&apos;s lenders. Your loan, your collateral and your liquidation price never appear on the public map: only one pooled borrower does, and every new borrower blurs it further.
           </p>
           <div className="rise mt-9 flex flex-wrap gap-3" style={{ animationDelay: "240ms" }}>
             <Link href="/app" className="btn btn-primary">

@@ -30,3 +30,10 @@
 - Agent posts the new statement before any money moves and resolves Intents transits by status, outside the lock.
 - First batch under the lock on mainnet: [begin_batch](https://nearblocks.io/txns/9YGLmXtBERqVN7vuHRhS5CKaqfJ1hi8ZKWL5aNb9gfWF), a 0.5 USDC private borrow ([borrow](https://basescan.org/tx/0x9b216922cfd7288b316a7de59a6b35743aa4de27b25a09dcd8476e3f9323aa4c), [to the private balance](https://basescan.org/tx/0xefd197b2c33c25d10d99a3d31626f3ca3cf985f529ca4daff81a7cdbdbf53d50)), [end_batch](https://nearblocks.io/txns/Gbrk8A2xLnqX6ke1qNLJGAdd122diW8CnVjFK6LgAaLg).
 - Gas right sized (60 Tgas signing, 30 Tgas calls) so the agent runs on a few tenths of a NEAR; spare NEAR goes back to the contract.
+
+## Nov 10 2026: first mainnet eject reverted, cause found
+
+- The NEAR contract signed the demo user's eject as designed ([GuwrhoVM…](https://nearblocks.io/txns/GuwrhoVMLqpq2F8emEELzL7fBxdU5T2rHAkoMK5SMfXn)). The Base transaction [reverted](https://basescan.org/tx/0x028f3b9a926dc9075769aea5b5ba4697b85062904813662f0b457c01ebd258f1) with an arithmetic underflow inside Morpho's repay.
+- Cause: the private ledger charges the Offmap spread on top of Morpho's rate, so ledger debt runs a little ahead of the cohort's real Morpho debt. The agent turned ledger debt straight into Morpho borrow shares for each statement, so the last user in a cohort was owed 1,994,149,315,563 shares while the cohort held 1,994,021,038,847 (about 0.00014 USDC apart). Morpho cannot repay more shares than a position has.
+- Fix: statements never publish more shares than the cohort will hold once the batch's own moves land; spare dust stays with the pool, covered by the spread. The new agent image was proposed on chain with the 24 hour public notice ([DagBtaeH…](https://nearblocks.io/txns/DagBtaeHJN2Uy6oXxMKixVEJGRpYV49DMJpwzdozZs19)) and the eject is rerun once it applies.
+- Eject now prepays 50 Tgas (measured: 5.3 Tgas of its own plus 25 forwarded to the signer and callback), so a user needs about 0.07 NEAR to leave on their own.
