@@ -28,7 +28,8 @@ const m = JSON.parse(fs.readFileSync("../../contracts/near/deploy/measurements.j
 const live: any = await provider.query({ request_type: "call_function", finality: "final", account_id: CONTRACT, method_name: "config", args_base64: Buffer.from("{}").toString("base64") } as any);
 const liveMeasurements: any[] = JSON.parse(Buffer.from(live.result).toString()).approved_measurements ?? [];
 const sameM = (a: any, b: any) => JSON.stringify(a) === JSON.stringify(b);
-const approved = process.argv.includes("--keep-current") ? [...liveMeasurements.filter((x) => !sameM(x, m.measurements)), m.measurements] : [m.measurements];
+const drop = (process.env.DROP_HASH ?? "").toLowerCase();
+const approved = process.argv.includes("--keep-current") ? [...liveMeasurements.filter((x) => !sameM(x, m.measurements) && !(drop && String(x.app_compose_hash_payload).toLowerCase().startsWith(drop))), m.measurements] : [m.measurements];
 const cohorts = [];
 for (const c of COHORTS) {
   const p = await marketParams(c);

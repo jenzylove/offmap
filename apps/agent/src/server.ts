@@ -20,6 +20,9 @@ const cohort = (id: string) => {
   return c;
 };
 
+/** Smallest borrow: NEAR Intents bridges 0.15 USDC at least; 0.25 leaves room for transit fees. */
+const MIN_BORROW = 250_000n;
+
 export function app(id: Identity, s: State) {
   const a = new Hono();
   a.use("*", cors());
@@ -48,6 +51,7 @@ export function app(id: Identity, s: State) {
     const b = await c.req.json();
     const k = cohort(b.cohort);
     const borrow = BigInt(b.borrowUsdc ?? "0");
+    if (borrow > 0n && borrow < MIN_BORROW) throw new Error(`borrow at least ${Number(MIN_BORROW) / 1e6} USDC: smaller amounts cannot be bridged out`);
     const dry = await intents.api<any>("/v0/quote", { dry: true, swapType: "EXACT_INPUT", slippageTolerance: 100, originAsset: b.depositAsset, depositType: "ORIGIN_CHAIN",
       destinationAsset: k.collateralAssetId, amount: String(b.depositAmount), refundTo: b.refundTo, refundType: "ORIGIN_CHAIN", recipient: id.intentsSigner, recipientType: "CONFIDENTIAL_INTENTS",
       deadline: new Date(Date.now() + 3600e3).toISOString() });
@@ -80,6 +84,7 @@ export function app(id: Identity, s: State) {
     const k = cohort(b.cohort);
     if (!["borrow", "withdraw"].includes(b.kind)) throw new Error("kind must be borrow or withdraw");
     if (frozen(s, k.id).has(u.userId)) throw new Error("your eject is in progress in this cohort");
+    if (b.kind === "borrow" && BigInt(b.amount) < MIN_BORROW) throw new Error(`borrow at least ${Number(MIN_BORROW) / 1e6} USDC: smaller amounts cannot be bridged out`);
     s.requests.push({ id: randomUUID(), kind: b.kind, userId: u.userId, cohortId: k.id, amount: String(BigInt(b.amount)), receive: { asset: b.receiveAsset, address: b.receiveAddress }, createdAt: Date.now(), status: "queued" });
     save(s);
     return c.json({ queued: true, nextBatchWithinSeconds: config.batchSeconds });

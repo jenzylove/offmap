@@ -127,6 +127,7 @@ async function teeIdentity(): Promise<Identity> {
         const r = await fetch(config.nearRpc, { method: "POST", headers: { "content-type": "application/json" }, signal: AbortSignal.timeout(20_000),
           body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "query", params: { request_type: "view_account", finality: "final", account_id: accountId } }) });
         const j: any = await r.json();
+        if (!j?.result?.amount) throw new Error(`balance read failed: ${JSON.stringify(j?.error ?? j).slice(0, 200)}`);
         return Number(BigInt(j.result.amount) / 10n ** 18n) / 1e6;
       };
       // Registration verifies a TDX quote on chain (about 184 Tgas, 0.018 NEAR): only when needed.
@@ -162,12 +163,13 @@ async function teeIdentity(): Promise<Identity> {
       // Retry forever with backoff; every failure is recorded and served on /health.
       for (let attempt = 0; ; attempt++) {
         try {
-          if ((await rawBalance()) < 0.25) {
+          const must = await needsRegistration();
+          if (must && (await rawBalance()) < 0.25) {
             reg.status = "waiting_for_funds"; reg.at = Date.now();
             await new Promise((r) => setTimeout(r, 30_000));
             continue;
           }
-          if (await needsRegistration()) {
+          if (must) {
             reg.status = "registering"; reg.at = Date.now();
             await registerOnce();
           }

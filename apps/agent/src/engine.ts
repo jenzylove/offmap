@@ -236,8 +236,13 @@ async function execute(id: Identity, s: State, c: CohortConfig, plan: Plan) {
     }
     if (!has("sentUsdc")) {
       const idle = await base.erc20Balance(USDC_BASE, addr);
-      const amt = idle < netDebt ? idle : netDebt;
-      if (amt > 0n) {
+      // Everything idle goes in one transit, so a small amount carried from an earlier batch rides along.
+      const amt = idle;
+      if (amt > 0n && amt < USDC_BRIDGE_MIN) {
+        // Below what NEAR Intents will bridge: keep it on the cohort address for the next transit and finish this batch.
+        note("transit", `${amt} USDC carried to the next batch (bridge minimum ${USDC_BRIDGE_MIN})`);
+        mark("sentUsdc"); mark("usdcOk");
+      } else if (amt > 0n) {
         const q = await intents.quoteFromBaseIntoConfidential(id, { baseAsset: USDC_BASE_ID, amount: amt.toString(), asset: USDC_INTENTS_ID, refundTo: addr });
         plan.usdcDeposit = q.depositAddress; plan.usdcAmount = amt.toString(); save(s);
         plan.txs.push(await base.transfer(id, c, USDC_BASE, q.depositAddress as Address, amt));
@@ -289,6 +294,9 @@ async function execute(id: Identity, s: State, c: CohortConfig, plan: Plan) {
   save(s);
   log("batch", c.id, plan.batchId, "done", "txs", plan.txs.length);
 }
+
+/** NEAR Intents will not bridge less than this from Base (1Click: "Amount is too low for bridge"). */
+export const USDC_BRIDGE_MIN = 150_000n;
 
 /** Whether a plan still has a move that needs a cohort signature (and so the lock). */
 function needsSigning(plan: Plan) {
@@ -386,7 +394,10 @@ async function runPayouts(id: Identity, s: State) {
       if (st.status === "SUCCESS") { p.status = "done"; p.tx = st.swapDetails?.destinationChainTxHashes?.[0]?.hash; }
       else if (["REFUNDED", "FAILED"].includes(st.status)) p.status = "failed";
       save(s);
-    } catch (e) { note("payout", e); log("payout", p.id, String(e)); }
+    } catch (e) {
+      if (/too low/i.test(String(e))) { p.status = "failed"; p.tries = 3; p.note = `owed: below the bridge minimum, paid with your next payout`; save(s); }
+      note("payout", e); log("payout", p.id, String(e));
+    }
   }
 }
 
