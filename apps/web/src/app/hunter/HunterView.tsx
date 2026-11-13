@@ -5,6 +5,7 @@ import { Details, ErrorLine, NotLive, Row, SectionHead, Source } from "@/compone
 import { HunterMap } from "@/components/HunterMap";
 import { lookupRoot } from "@/components/NoteCheck";
 import { Reveal } from "@/components/Reveal";
+import { WalletCheck } from "@/components/WalletCheck";
 import { PositionLines } from "@/components/WorldPanel";
 import { COHORTS, CONTRACT_ID, morphoMarketUrl, nearblocksAddr, type CohortDef } from "@/lib/config";
 import { ago, compactUsd, pct, short, units, usd } from "@/lib/format";
@@ -154,8 +155,17 @@ export function HunterView() {
 
       <section className="gutter">
         <div className="wrap">
+          <div className="pb-16 md:pb-24">
+            <Reveal>
+              <SectionHead n="01" kicker="Try it on any wallet" title="See your own line.">
+                Paste a Base wallet that borrows on Morpho, yours or anyone's. In one second you get what a hunter gets: the price where it is liquidated, and how far that is from today.
+              </SectionHead>
+            </Reveal>
+            <WalletCheck />
+          </div>
+
           <Reveal>
-            <SectionHead n="01" kicker="Where the debt piles up" title="Pick a market. Read the levels.">
+            <SectionHead n="02" kicker="Where the debt piles up" title="Pick a market. Read the levels.">
               The same chart a liquidation hunter reads. Hover to see how much debt is forced to sell at each price.
             </SectionHead>
           </Reveal>
@@ -167,7 +177,7 @@ export function HunterView() {
 
           <div className="rule-t py-20 md:py-28">
             <Reveal>
-              <SectionHead n="02" kicker="Now look for an Offmap user" title="You will find one cold point.">
+              <SectionHead n="03" kicker="Now look for an Offmap user" title="You will find one cold point.">
                 Not on Morpho, not on Base, not on NEAR, not in any API. Each market shows Offmap as one borrower. The contract stores totals and a salted root that cannot be opened by guessing amounts.
               </SectionHead>
               <p className="mt-6 max-w-2xl text-[15px] leading-relaxed text-ink-3">

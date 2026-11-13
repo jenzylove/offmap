@@ -68,7 +68,7 @@ Offmap needs three things at once, and NEAR is where they meet: **confidential c
    node scripts/judge-checks.mjs
    ```
    You see `10 passed, 0 failed`: the contract requires a TEE, the live agent is registered with a real TDX attestation whose compose hash equals the one approved on chain, only the agent's key can move the confidential balance, each cohort's public Morpho collateral equals the solvency statement, the cohort has authorized the eject helper on Morpho, and the helper is live on Base.
-2. **Open the [hunter view](https://offmap.jdollar.site/hunter).** It plots the liquidation levels of the 500 largest public Morpho borrowers, live, next to the Offmap cohort. The cohort is one borrower; nothing per user exists anywhere public.
+2. **Open the [hunter view](https://offmap.jdollar.site/hunter) and paste any Base wallet.** You get its liquidation price and how far it sits from today, straight from the public Morpho API, in a second. No wallet of your own? Tap "try the biggest cbBTC borrower". Below it, the liquidation levels of the 500 largest public Morpho borrowers sit next to the Offmap cohort. The cohort is one borrower; nothing per user exists anywhere public.
 3. **Open the agent's [health](https://b85acd75d1ee0d9a37241a18f68a6c55376b5e3a-8787.dstack-pha1-prod5.phala.network/health) and [attestation](https://b85acd75d1ee0d9a37241a18f68a6c55376b5e3a-8787.dstack-pha1-prod5.phala.network/attestation).** Then rebuild the compose hash from this repo: `cd contracts/near/deploy && node verify-compose.mjs` (needs `npm i -g @neardefi/shade-agent-cli`). It equals `tcb_info.compose_hash` in the attestation.
 4. **Borrow yourself.** On [/app](https://offmap.jdollar.site/app), sign in with an EVM wallet, deposit a few dollars of BTC, cbBTC or WBTC (cbBTC pool) or WETH on Base (ETH pool), borrow USDC to any wallet. Your view shows your loan and liquidation price; the hunter view still shows only the cohort.
 
@@ -108,6 +108,18 @@ Offmap charges **1% a year on top of Morpho's borrow rate**. On $10M of private 
 | [`docs`](docs) | [PRD](docs/PRD.md), [architecture](docs/ARCHITECTURE.md), [spikes](docs/spikes), [build log](docs/BUILD_LOG.md) |
 
 Run locally: `pnpm install && pnpm -r test` (core, agent, web), `cd contracts/near && cargo test` (contract, 69 tests), `cd contracts/base && forge install foundry-rs/forge-std@v1.17.0 --no-git && forge test --fork-url https://mainnet.base.org` (eject helper on a Base fork).
+
+## Who you trust
+
+| Who | What they could do | What stops them |
+|---|---|---|
+| Intel TDX | If the sealed chip were broken, whoever runs the machine could read the private ledger | Nothing on our side; this is the one real trust, as with every TEE product. Reading the ledger still does not move money |
+| Phala, the host | Switch the machine off; it cannot read inside | Eject: with your downloaded note, the contract alone moves your share to your own Morpho position (done on mainnet) |
+| Us, the builders | Propose new agent code | It waits 24 hours in public on `offmapfi.near`, so you can eject first. The contract itself only changes through a 48 hour wind down with every pool empty |
+| NEAR MPC network | Signs for the pooled Base positions | It signs only what `offmapfi.near` asks for: an attested agent inside a batch lock, or a valid eject |
+| Morpho, NEAR Intents | Hold the loan, move money in and out | Public protocols; every move they make for Offmap is on chain |
+
+The same table is live on the [proof page](https://offmap.jdollar.site/proof#trust), next to the current pool size.
 
 ## Scope and limits
 

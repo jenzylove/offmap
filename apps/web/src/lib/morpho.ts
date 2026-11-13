@@ -157,3 +157,62 @@ export async function readLevels(c: CohortDef, first = 400): Promise<MarketLevel
     fetchedAt: Date.now(),
   };
 }
+
+/* ---------- Any wallet's public loans on Morpho, Base: what a hunter reads about one address ---------- */
+
+export interface WalletLoan {
+  marketId: string;
+  collateralSymbol: string;
+  loanSymbol: string;
+  debtUsd: number | null;
+  healthFactor: number;
+  /** Collateral price now and at liquidation, in loan asset units per whole collateral token. */
+  priceNow: number;
+  liquidationPrice: number;
+  /** How far the collateral has to fall before this loan is liquidated, 0 to 1. */
+  dropToLiquidation: number;
+}
+
+const WALLET_QUERY = `query Wallet($a: String!) {
+  marketPositions(first: 50, where: { chainId_in: [8453], userAddress_in: [$a], borrowShares_gte: 1 }) {
+    items {
+      healthFactor
+      market { marketId collateralAsset { symbol decimals } loanAsset { symbol decimals } state { price } }
+      state { borrowAssetsUsd }
+    }
+  }
+}`;
+
+interface WalletResp {
+  marketPositions: {
+    items: {
+      healthFactor: number | null;
+      market: { marketId: string; collateralAsset: { symbol: string; decimals: number } | null; loanAsset: { symbol: string; decimals: number }; state: { price: string | null } | null };
+      state: { borrowAssetsUsd: number | null } | null;
+    }[];
+  };
+}
+
+export async function readWalletLoans(address: string): Promise<WalletLoan[]> {
+  const d = await gql<WalletResp>(WALLET_QUERY, { a: address });
+  const out: WalletLoan[] = [];
+  for (const it of d.marketPositions.items) {
+    const hf = it.healthFactor;
+    const col = it.market.collateralAsset;
+    const price = it.market.state?.price;
+    if (!hf || hf <= 0 || !col || !price) continue;
+    const priceNow = oracleToUsd(BigInt(price), col.decimals, it.market.loanAsset.decimals);
+    if (!(priceNow > 0)) continue;
+    out.push({
+      marketId: it.market.marketId,
+      collateralSymbol: col.symbol,
+      loanSymbol: it.market.loanAsset.symbol,
+      debtUsd: it.state?.borrowAssetsUsd ?? null,
+      healthFactor: hf,
+      priceNow,
+      liquidationPrice: priceNow / hf,
+      dropToLiquidation: Math.max(0, 1 - 1 / hf),
+    });
+  }
+  return out.sort((a, b) => (b.debtUsd ?? 0) - (a.debtUsd ?? 0));
+}

@@ -259,12 +259,43 @@ function useLeakCheck() {
     const lvl = (d.levelAttack ?? {}) as { movingBatches?: number; batchesExposingOneUser?: number };
     const single = typeof lvl.movingBatches === "number" && lvl.movingBatches > 0 ? ` ${lvl.batchesExposingOneUser ?? 0} of ${lvl.movingBatches} batches that moved money carried a single borrower, so those batch totals were that borrower's.` : "";
     const crowd = deposits < 20 ? ` Privacy grows with the crowd: every new borrower hides everyone better, and this study shows it hour by hour.` : "";
+    const pools = await publicCohorts().catch(() => null);
+    const debt = pools ? pools.cohorts.reduce((n, k) => n + Number(BigInt(k.morpho.debt)) / 1e6, 0) : null;
+    const now = debt === null ? "" : debt === 0 ? " Right now the pools are empty: the only loan so far was ejected on mainnet." : ` Right now the pools carry ${debt.toLocaleString("en-US", { maximumFractionDigits: 2 })} USDC of loans.`;
     return {
       tone: "pass",
-      text: `Running hourly. Linking attacks on ${deposits} deposit${deposits === 1 ? "" : "s"} and ${payouts} payout${payouts === 1 ? "" : "s"}: ${linked} linked by amount, timing or address.${single}${crowd}`,
+      text: `Running hourly. Linking attacks on ${deposits} deposit${deposits === 1 ? "" : "s"} and ${payouts} payout${payouts === 1 ? "" : "s"}: ${linked} linked by amount, timing or address.${single}${now}${crowd}`,
     };
   }, [], 120_000);
 }
+
+const TRUST: { who: string; could: string; stop: string }[] = [
+  {
+    who: "Intel TDX",
+    could: "If the sealed chip were broken, whoever runs the machine could read the private ledger and see your line.",
+    stop: "Nothing on our side. This is the one real trust you place, the same as every TEE product. Reading the ledger still would not let anyone move your money.",
+  },
+  {
+    who: "Phala, the host",
+    could: "Switch the machine off. It cannot read inside it.",
+    stop: "Eject. With the note you downloaded, the NEAR contract checks your proof and moves your share to your own Morpho position. Already done on mainnet.",
+  },
+  {
+    who: "Us, the builders",
+    could: "Propose new agent code.",
+    stop: `It waits 24 hours in public on ${CONTRACT_ID} before it counts, so you can eject first. The contract itself only changes through a 48 hour public wind down that needs every pool empty.`,
+  },
+  {
+    who: "NEAR chain signatures",
+    could: "NEAR's MPC network signs for the pooled Base positions.",
+    stop: `It only signs what ${CONTRACT_ID} asks for, and the contract only asks for an attested agent or a valid eject.`,
+  },
+  {
+    who: "Morpho and NEAR Intents",
+    could: "Morpho holds the loan on Base. NEAR Intents moves money in and out.",
+    stop: "Nothing on our side. Both are public, widely used protocols, and every move they make for Offmap is on chain for anyone to check.",
+  },
+];
 
 const verdictOf = (x: { data: Verdict | null; error: string | null }): Verdict =>
   x.data ?? (x.error ? { tone: "fail", text: `Could not check: ${x.error}` } : { tone: "load", text: "Checking live…" });
@@ -309,9 +340,36 @@ export function ProofSheet() {
       </Check>
 
       <Reveal as="section">
-        <div id="runs" className="scroll-mt-28 rule-t py-14 md:py-20">
+        <div id="trust" className="scroll-mt-28 rule-t py-14 md:py-20">
           <div className="grid gap-8 md:grid-cols-[90px_minmax(0,1fr)] md:gap-10">
             <div className="num text-[13px] text-cold">05</div>
+            <div>
+              <h2 className="wide text-[clamp(26px,3.2vw,42px)] font-semibold leading-[1.05]">Who you still trust.</h2>
+              <p className="mt-5 max-w-2xl text-[17px] leading-relaxed text-ink-2">No system is trustless. Here is everyone Offmap leans on, what they could do, and what stops them.</p>
+              <div className="mt-10 max-w-3xl">
+                {TRUST.map((t) => (
+                  <div key={t.who} className="grid gap-2 rule-t py-5 sm:grid-cols-[180px_minmax(0,1fr)] sm:gap-8">
+                    <div className="text-[16px] text-ink">{t.who}</div>
+                    <div className="text-[15px] leading-relaxed text-ink-2">
+                      <div>
+                        <span className="text-heat">Could:</span> {t.could}
+                      </div>
+                      <div className="mt-1">
+                        <span className="text-cold">Stopped by:</span> {t.stop}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </Reveal>
+
+      <Reveal as="section">
+        <div id="runs" className="scroll-mt-28 rule-t py-14 md:py-20">
+          <div className="grid gap-8 md:grid-cols-[90px_minmax(0,1fr)] md:gap-10">
+            <div className="num text-[13px] text-cold">06</div>
             <div>
               <h2 className="wide text-[clamp(26px,3.2vw,42px)] font-semibold leading-[1.05]">Already run on chain.</h2>
               <p className="mt-5 max-w-2xl text-[17px] leading-relaxed text-ink-2">Every piece Offmap stands on was run for real first. Each run links to its transactions.</p>
