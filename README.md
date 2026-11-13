@@ -6,7 +6,11 @@
 
 **Your liquidation price is public. Offmap hides it.**
 
-Borrow USDC against your Bitcoin or ETH on real Morpho liquidity. Nobody can see your loan, your collateral or the price where you get liquidated: the public record shows one pooled borrower, and every new borrower blurs it further.
+When you borrow on a public lending market, anyone can see the exact price where your loan gets liquidated. Traders push the price there on purpose.
+
+Offmap lets you borrow USDC against your Bitcoin or ETH on real Morpho liquidity without showing that price to anyone. The public record shows one pooled borrower. Your loan is only visible to you.
+
+**See the problem in 10 seconds:** open the [hunter view](https://offmap.jdollar.site/hunter), paste any Base wallet, and read its liquidation price. That is what every hunter can see about your loan today.
 
 <p>
   <a href="https://offmap.jdollar.site"><img alt="Live" src="https://img.shields.io/badge/live-offmap.jdollar.site-7FE9FF?labelColor=0B0C0E&style=flat-square"></a>
@@ -97,13 +101,13 @@ Offmap needs three things at once, and NEAR is where they meet: **confidential c
 
 ## Judge fast path (five minutes, no keys)
 
-1. **Run the checks.** Node 22 or newer, nothing to install:
+1. **See the problem. Open the [hunter view](https://offmap.jdollar.site/hunter) and paste any Base wallet.** You get its liquidation price and how far it sits from today, straight from the public Morpho API, in a second. No wallet of your own? Tap "try the biggest cbBTC borrower". Below it, the liquidation levels of the 500 largest public Morpho borrowers sit next to the Offmap cohort. The cohort is one borrower; nothing per user exists anywhere public.
+2. **Check the promises. Run the checks.** Node 22 or newer, nothing to install:
    ```bash
    git clone https://github.com/jenzylove/offmap && cd offmap
    node scripts/judge-checks.mjs
    ```
    You see `10 passed, 0 failed`: the contract requires a TEE, the live agent is registered with a real TDX attestation whose compose hash equals the one approved on chain, only the agent's key can move the confidential balance, each cohort's public Morpho collateral equals the solvency statement, the cohort has authorized the eject helper on Morpho, and the helper is live on Base.
-2. **Open the [hunter view](https://offmap.jdollar.site/hunter) and paste any Base wallet.** You get its liquidation price and how far it sits from today, straight from the public Morpho API, in a second. No wallet of your own? Tap "try the biggest cbBTC borrower". Below it, the liquidation levels of the 500 largest public Morpho borrowers sit next to the Offmap cohort. The cohort is one borrower; nothing per user exists anywhere public.
 3. **Open the agent's [health](https://b85acd75d1ee0d9a37241a18f68a6c55376b5e3a-8787.dstack-pha1-prod5.phala.network/health) and [attestation](https://b85acd75d1ee0d9a37241a18f68a6c55376b5e3a-8787.dstack-pha1-prod5.phala.network/attestation).** Then rebuild the compose hash from this repo: `cd contracts/near/deploy && node verify-compose.mjs` (needs `npm i -g @neardefi/shade-agent-cli`). It equals `tcb_info.compose_hash` in the attestation.
 4. **Borrow yourself.** On [/app](https://offmap.jdollar.site/app), sign in with an EVM wallet, deposit a few dollars of BTC, cbBTC or WBTC (cbBTC pool) or WETH on Base (ETH pool), borrow USDC to any wallet. Your view shows your loan and liquidation price; the hunter view still shows only the cohort.
 
