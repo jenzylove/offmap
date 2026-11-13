@@ -28,14 +28,14 @@ const b58 = (bytes) => { const A = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijk
 const info = await view(CONTRACT, "get_contract_info");
 check("offmapfi.near requires a TEE attested agent", info?.requires_tee === true, `mode ${info?.mode}`);
 const cfg = await view(CONTRACT, "config");
-const approved = cfg?.approved_measurements?.[0]?.app_compose_hash_payload;
+const approvedAll = (cfg?.approved_measurements ?? []).map((m) => m.app_compose_hash_payload);
 
 // 2. The live agent runs in TDX, is registered, and its attested compose hash is the approved one.
 const health = await (await fetch(AGENT + "/health")).json();
 check("agent reports it runs in a TEE", health.tee === true, `agent ${health.agent.slice(0, 10)}...`);
 check("agent is registered with the contract", health.registration?.status === "registered");
 const att = await (await fetch(AGENT + "/attestation")).json();
-check("attested compose hash equals the hash approved on chain", att?.tcb_info?.compose_hash === approved, `${String(approved).slice(0, 16)}...`);
+check("attested compose hash equals the hash approved on chain", approvedAll.includes(att?.tcb_info?.compose_hash), `${String(att?.tcb_info?.compose_hash).slice(0, 16)}... of ${approvedAll.length} approved`);
 const agentRec = await view(CONTRACT, "get_agent", { account_id: health.agent });
 const agents = await view(CONTRACT, "get_agents", {});
 const mine = (agents ?? []).find((a) => a.account_id === health.agent);
