@@ -11,7 +11,7 @@ Borrow USDC against your Bitcoin or ETH on real Morpho liquidity. Nobody can see
 [![NEAR mainnet](https://img.shields.io/badge/NEAR-mainnet-00ec97)](https://nearblocks.io/address/offmapfi.near)
 [![Agent in Intel TDX](https://img.shields.io/badge/agent-Intel%20TDX%20on%20Phala-1f6feb)](https://b85acd75d1ee0d9a37241a18f68a6c55376b5e3a-8787.dstack-pha1-prod5.phala.network/health)
 [![Base mainnet](https://img.shields.io/badge/Morpho-Base%20mainnet-0052ff)](https://basescan.org/address/0x5bDE486bF9F69331100F48edfF3cf580CB869B5a)
-[![Judge checks](https://img.shields.io/badge/judge%20checks-11%2F11-success)](#judge-fast-path-five-minutes-no-keys)
+[![Judge checks](https://img.shields.io/badge/judge%20checks-10%2F10-success)](#judge-fast-path-five-minutes-no-keys)
 [![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 
 **[offmap.jdollar.site](https://offmap.jdollar.site)** · [Hunter view](https://offmap.jdollar.site/hunter) · [Proof](https://offmap.jdollar.site/proof) · Built at NEAR HACKATHON
