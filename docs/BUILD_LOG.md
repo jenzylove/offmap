@@ -44,4 +44,10 @@
 - First eject on the new statement: NEAR signed ([78GPwEAn…](https://nearblocks.io/txns/78GPwEAnnYAEbLCc5DBWTM8RmrnTk6XWCT8g2mmEq2XX)), Base [reverted](https://basescan.org/tx/0xcd09c9126430bdd179d81f82e9ffc4b32716895484f0b158c1eaf93e7412227e) with "insufficient collateral": the share cap left 66M borrow shares (about 0.00007 USDC) on the pool, and the demo user was the pool's only borrower, so the eject would have left that dust with no collateral.
 - Morpho lets anyone repay on another address's behalf: 0.0003 USDC repaid for the pool ([0x95ff4272…](https://basescan.org/tx/0x95ff4272f679e90229a13d6563a9892c0918cf275e5351152a4946a20f15e30f)). The agent gave the user a fresh leaf in the next statement, whose shares equal the pool's on chain shares exactly.
 - **Eject landed**: NEAR [Bmzf1bgg…](https://nearblocks.io/txns/Bmzf1bggxs4gFidYxmH8wg9ReMCNTYG37q3aZ1oaarNY), Base [0x1c765da1…](https://basescan.org/tx/0x1c765da1410120e8f4054434a7d49b6217bee3fcefc2178855dfbbc3e2569470). The demo wallet now owns its Morpho position (6296 sats cbBTC, 2.31 USDC debt); the pooled borrower is at zero.
-- Next: statements will assign every on chain share when the ledger covers them, so the last borrower out never meets dust.
+- If a last borrower ever meets the same dust, anyone can clear it with the same public repay on the pool's behalf, as above.
+
+## Nov 13 2026: hunter lookup and trust page
+
+- The [hunter view](https://offmap.jdollar.site/hunter) reads any Base wallet's Morpho loans from the public API and shows the liquidation price and how far it is from today.
+- The [proof page](https://offmap.jdollar.site/proof#trust) lists who you still trust and what stops each of them, and states the live size of the pools.
+- Commit 83e6a34. Submitted to NEAR HACKATHON in the DeFi and Privacy tracks.

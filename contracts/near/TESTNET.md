@@ -2,7 +2,7 @@
 
 NEAR testnet only, dev mode (local agent whitelisted, mock attestation exactly as shade-agent-js sends it), MPC `v1.signer-prod.testnet`. Produced by `node contracts/near/scripts/testnet-smoke.mjs`; raw results in `scripts/<contract>.run.json`. Built 2026-11-08 with `cargo near build non-reproducible-wasm --no-abi` (797,257 bytes, sha256 `75c53c3b04b6be1e069dbcfb8be12d39e9e6b500db3c3feae061aef69a4c616c`).
 
-The eject uses the fixture note from `tests/fixtures.json` (tree built by packages/core, transaction encoded by viem). The EjectHelper address in the fixture is a placeholder (`0x...0e1ec7`) until the helper is deployed on Base, so the signed eject transactions are real signatures over a transaction that is not meant to be broadcast.
+The eject uses the fixture note from `tests/fixtures.json` (tree built by packages/core, transaction encoded by viem). The EjectHelper address in the fixture is a placeholder (`0x...0e1ec7`) because these runs came before the helper was deployed (it is now live on Base at `0x262fe96b235be762dca8cc1937a542848e12f8b8`), so the signed eject transactions are real signatures over a transaction that is not meant to be broadcast.
 
 `intents_contract` is `intents.near`, which does not exist on testnet: the `add_public_key` / `remove_public_key` receipts are created as designed and fail with AccountDoesNotExist (visible in the register and recover transactions).
 

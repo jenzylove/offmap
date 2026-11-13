@@ -8,17 +8,34 @@
 
 Borrow USDC against your Bitcoin or ETH on real Morpho liquidity. Nobody can see your loan, your collateral or the price where you get liquidated: the public record shows one pooled borrower, and every new borrower blurs it further.
 
-[![NEAR mainnet](https://img.shields.io/badge/NEAR-mainnet-00ec97)](https://nearblocks.io/address/offmapfi.near)
-[![Agent in Intel TDX](https://img.shields.io/badge/agent-Intel%20TDX%20on%20Phala-1f6feb)](https://b85acd75d1ee0d9a37241a18f68a6c55376b5e3a-8787.dstack-pha1-prod5.phala.network/health)
-[![Base mainnet](https://img.shields.io/badge/Morpho-Base%20mainnet-0052ff)](https://basescan.org/address/0x5bDE486bF9F69331100F48edfF3cf580CB869B5a)
-[![Judge checks](https://img.shields.io/badge/judge%20checks-10%2F10-success)](#judge-fast-path-five-minutes-no-keys)
-[![License: MIT](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
+<p>
+  <a href="https://offmap.jdollar.site"><img alt="Live" src="https://img.shields.io/badge/live-offmap.jdollar.site-7FE9FF?labelColor=0B0C0E&style=flat-square"></a>
+  <a href="https://x.com/Dollar782/status/2121277976817901959"><img alt="Demo video" src="https://img.shields.io/badge/demo-2%20min%20video-FF5B1F?logo=x&logoColor=white&labelColor=0B0C0E&style=flat-square"></a>
+  <a href="https://nearblocks.io/address/offmapfi.near"><img alt="NEAR mainnet" src="https://img.shields.io/badge/NEAR%20mainnet-offmapfi.near-00EC97?labelColor=0B0C0E&style=flat-square"></a>
+  <a href="https://b85acd75d1ee0d9a37241a18f68a6c55376b5e3a-8787.dstack-pha1-prod5.phala.network/attestation"><img alt="Agent in Intel TDX" src="https://img.shields.io/badge/agent-Intel%20TDX%20on%20Phala-7FE9FF?labelColor=0B0C0E&style=flat-square"></a>
+  <a href="https://basescan.org/address/0x5bDE486bF9F69331100F48edfF3cf580CB869B5a"><img alt="Morpho on Base" src="https://img.shields.io/badge/Morpho-Base%20mainnet-0052FF?labelColor=0B0C0E&style=flat-square"></a>
+  <a href="#judge-fast-path-five-minutes-no-keys"><img alt="Judge checks" src="https://img.shields.io/badge/judge%20checks-10%2F10-00EC97?labelColor=0B0C0E&style=flat-square"></a>
+  <a href="LICENSE"><img alt="MIT" src="https://img.shields.io/badge/license-MIT-EDEBE3?labelColor=0B0C0E&style=flat-square"></a>
+</p>
 
-**[offmap.jdollar.site](https://offmap.jdollar.site)** · [Hunter view](https://offmap.jdollar.site/hunter) · [Proof](https://offmap.jdollar.site/proof) · Built at NEAR HACKATHON
+**[offmap.jdollar.site](https://offmap.jdollar.site)** · [Hunter view](https://offmap.jdollar.site/hunter) · [Proof](https://offmap.jdollar.site/proof) · [Demo video](https://x.com/Dollar782/status/2121277976817901959) · Built at NEAR HACKATHON
 
-<img src="docs/assets/hero.png" alt="Offmap: what the world sees next to what you see" width="900" />
+<img src="docs/assets/hero.png" alt="The Offmap landing page: every public Morpho loan on Base drawn as a heat map by liquidation price" width="100%" />
 
 </div>
+
+<table>
+  <tr>
+    <td width="33%"><img src="docs/assets/hunter.png" alt="Hunter view: paste any Base wallet and read its liquidation price" /></td>
+    <td width="33%"><img src="docs/assets/proof.png" alt="Proof page: four checks run live against NEAR, Base and the agent" /></td>
+    <td width="33%"><img src="docs/assets/app.png" alt="Borrow flow: connect, set up, deposit, your loan" /></td>
+  </tr>
+  <tr>
+    <td>Paste any wallet. See the line a hunter sees.</td>
+    <td>Four promises, checked live in your browser.</td>
+    <td>Borrow in four steps. Only you see the loan.</td>
+  </tr>
+</table>
 
 ## The problem
 
@@ -30,18 +47,36 @@ This already happens. In March 2025, 10x Research [warned](https://forklog.com/e
 
 You borrow through a few pooled positions on Morpho Blue (Base). The pool is run by an agent inside Intel TDX hardware, so your loan exists only in a private ledger that nobody can read, not us and not the host. The world sees one borrower per pool. You see your own loan.
 
+
+```mermaid
+flowchart TD
+    U["Your wallet<br/>Bitcoin, Base or Ethereum"]
+    I["NEAR Confidential Intents<br/>private balance owned by offmapfi.near"]
+    A["Offmap agent in Intel TDX on Phala<br/>private ledger, risk checks,<br/>private liquidation at 70%"]
+    C["offmapfi.near<br/>checks the TDX attestation,<br/>batch lock, solvency statements"]
+    M["NEAR MPC<br/>chain signatures"]
+    P["Pooled borrower on Morpho Blue, Base<br/>the only thing the public sees"]
+    H["EjectHelper on Base"]
+    O["Your own Morpho position"]
+
+    U -- "deposit collateral" --> I
+    I -- "lands privately" --> A
+    A -- "asks to sign" --> C
+    C -- "signs only for an attested agent" --> M
+    M -- "supply, borrow, repay" --> P
+    A -- "USDC in round lots after random delays" --> I
+    I -- "payout to any chain" --> U
+    U -. "eject with your note, no agent needed" .-> C
+    C -. "signed eject" .-> H
+    H -. "moves your share" .-> O
+
+    classDef pub fill:#2a1208,stroke:#ff5b1f,color:#ffd9c7
+    classDef priv fill:#06222a,stroke:#7fe9ff,color:#d9f8ff
+    class P,H,O pub
+    class A,I priv
 ```
-your wallet (Bitcoin, Base or Ethereum)
-   │  deposit through NEAR Intents, into a confidential balance owned by offmapfi.near
-   ▼
-Offmap agent in Intel TDX (Phala)   ──  private ledger, risk checks, private liquidation, salted Merkle notes
-   │  asks offmapfi.near to sign       offmapfi.near verifies the TDX attestation, then signs with NEAR MPC
-   ▼
-pooled position on Morpho Blue (Base) ──  one borrower per cohort, real liquidity
-   │  USDC back through confidential Intents, paid to your wallet in round lots after random delays
-   ▼
-eject: any time, with your note, straight from the contract to your own Morpho position (works without the agent)
-```
+
+Cyan is private, orange is public. Dotted lines are the eject path, which works even if the agent is gone.
 
 ## Why not just borrow on Morpho?
 
@@ -87,10 +122,12 @@ Offmap needs three things at once, and NEAR is where they meet: **confidential c
 | Leak study | Runs hourly on Offmap's own traffic, served at `/public/leak` | [agent](https://b85acd75d1ee0d9a37241a18f68a6c55376b5e3a-8787.dstack-pha1-prod5.phala.network/public/leak) |
 | Second cohort (WETH/USDC) | Configured, no loans yet | contract `config` |
 
-## Track by track
+## For judges: each track, mapped to the code
 
-- **Unstoppable DeFi.** Real lending on Morpho Blue, settled across chains through NEAR Intents: collateral in from Bitcoin, Base or Ethereum, USDC out to most chains, pooled positions, private liquidation, permissionless eject.
-- **Privacy and Private AI.** Private positions held in a TDX enclave, confidential Intents balances for custody and payouts, a contract that verifies the attestation, and a published leak study that measures how private it really is.
+| Track | What to look at | Where it is |
+|---|---|---|
+| **Unstoppable DeFi** | Real loans on Morpho Blue through a pooled borrower. Collateral in from Bitcoin, Base or Ethereum and USDC out through NEAR Intents. Risk rules and private liquidation at 70%. An eject that needs nobody's permission, already run on mainnet | [`apps/agent/src/engine.ts`](apps/agent/src/engine.ts), [`apps/agent/src/intents.ts`](apps/agent/src/intents.ts), [`packages/core/src/risk.ts`](packages/core/src/risk.ts), [`contracts/base/src/EjectHelper.sol`](contracts/base/src/EjectHelper.sol) |
+| **Privacy and Private AI** | The ledger lives only inside Intel TDX. The contract checks the attestation before it will sign. Confidential Intents balances for custody and payouts. Salted Merkle notes, so a statement cannot be opened by guessing amounts. A leak study that measures how private it really is | [`contracts/near/src/lib.rs`](contracts/near/src/lib.rs), [`packages/core/src/merkle.ts`](packages/core/src/merkle.ts), [`apps/agent/src/leak.ts`](apps/agent/src/leak.ts), [`apps/web/src/app/proof/ProofSheet.tsx`](apps/web/src/app/proof/ProofSheet.tsx) |
 
 ## The business in one number
 
@@ -135,4 +172,5 @@ The same table is live on the [proof page](https://offmap.jdollar.site/proof#tru
 NEAR (contracts, chain signatures `v1.signer`, NEAR Intents and Confidential Intents through the 1Click API), Phala Cloud (Intel TDX, dstack), `@neardefi/shade-agent-js` and `shade-attestation`, Morpho Blue on Base, viem, Next.js, Foundry, cargo-near. Code was written with AI assistance (Claude Code), reviewed and tested by the author.
 
 The author's other NEAR HACKATHON project is **KEYFALL** ([github.com/jenzylove/keyfall](https://github.com/jenzylove/keyfall)), a separate and independent memecoin game on NEAR's quantum safe keys.
+
 MIT licensed.

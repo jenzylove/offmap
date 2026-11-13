@@ -197,17 +197,17 @@ Every number on the site is read live or links to its source. No staged states, 
 
 ## 12. Hackathon checklist
 
-Ticked only from the live app. Copied to `docs/SUBMISSION_CHECKLIST.md`.
+Ticked from the live app on 2026-11-13, the day Offmap was submitted.
 
-- [ ] Public repo with LICENSE by 2026-11-14 23:59 UTC
-- [ ] README for human and AI judges: "do X, see Y", five minute fast path (section 11)
-- [ ] README names the other project, Q-DAY (rule Q-015)
-- [ ] Libraries and AI assisted code listed in the README (rule Q-005)
-- [ ] Code written since 2026-10-19
-- [ ] Hosted demo up until at least 2026-11-25
-- [ ] X post: built at NEAR HACKATHON, tags @NEARProtocol and #NEARHackathon, demo video attached
-- [ ] Form: tracks `defi`, `privacy`; NEAR mainnet payout account created by the owner; Website field empty
-- [ ] Mainnet transactions for every claimed behaviour, linked from the README
+- [x] Public repo with LICENSE by 2026-11-14 23:59 UTC
+- [x] README for human and AI judges: "do X, see Y", five minute fast path (section 11)
+- [x] README names the other project, KEYFALL (rule Q-015)
+- [x] Libraries and AI assisted code listed in the README (rule Q-005)
+- [x] Code written since 2026-10-19
+- [x] Hosted demo up until at least 2026-11-25
+- [x] X post: built at NEAR HACKATHON, tags @NEARProtocol and #NEARHackathon, demo video attached
+- [x] Form: tracks `defi`, `privacy`; NEAR mainnet payout account; Website field empty
+- [x] Mainnet transactions for every claimed behaviour, linked from the README
 
 ## 13. Acceptance tests
 
@@ -238,7 +238,7 @@ Ticked only from the live app. Copied to `docs/SUBMISSION_CHECKLIST.md`.
 7. **Known:** Morpho Blue market parameters and liquidity on Base.
 8. **Known:** 1Click deposit, status and refund flow.
 
-If any spike fails, the build stops and the plan is changed with the owner before any code depends on it.
+If a spike had failed, the build would have stopped and the plan changed before any code depended on it. None failed; results are in `docs/spikes`.
 
 ## 15. References
 

@@ -1,21 +1,37 @@
 # Offmap architecture
 
-The contract between the four parts. Every part builds to this file; change it here first.
+How the four parts fit together, and the interfaces between them.
 
-```
-user wallet (any chain)
-   │  deposit via 1Click quote (recipient: agent's CONFIDENTIAL_INTENTS balance)
-   ▼
-apps/agent  (TDX on Phala, Shade Agent)          apps/web (Next.js, Vercel)
-   │  private ledger (@offmap/core)  ◄── HTTPS API ──►  borrow, your view, hunter view, proof, eject
-   │  confidential Intents balance (owner session)
-   │  calls offmapfi.near: submit_statement, request_signature
-   ▼
-contracts/near  offmapfi.near  ──sign──►  v1.signer (MPC)  ──►  cohort address on Base
-   │  stores statements, verifies Merkle eject proofs,                │
-   │  builds and signs eject txs                                        ▼
-   ▼                                                        Morpho Blue (cbBTC/USDC, WETH/USDC)
-contracts/base  EjectHelper (immutable)  ◄── eject tx ───────────────┘
+```mermaid
+flowchart LR
+    subgraph User
+        W["Wallet on any chain"]
+        WEB["apps/web<br/>Next.js on Vercel<br/>borrow, your view, hunter view, proof, eject"]
+    end
+    subgraph Phala["Intel TDX on Phala"]
+        AG["apps/agent<br/>private ledger from packages/core<br/>batches, prices, payouts"]
+    end
+    subgraph NEAR
+        CI["Confidential Intents balance<br/>owned by offmapfi.near"]
+        K["contracts/near<br/>offmapfi.near<br/>attestation, statements, batch lock, eject"]
+        MPC["v1.signer<br/>NEAR MPC"]
+    end
+    subgraph Base
+        CO["Cohort address<br/>pooled borrower"]
+        MO["Morpho Blue<br/>cbBTC/USDC, WETH/USDC"]
+        EH["contracts/base<br/>EjectHelper"]
+    end
+
+    W -- "1Click deposit" --> CI
+    WEB <-- "HTTPS API" --> AG
+    AG -- "owner session" --> CI
+    AG -- "submit_statement, request_signature" --> K
+    K -- "sign" --> MPC
+    MPC -- "signed tx" --> CO
+    CO -- "supply, borrow, repay" --> MO
+    WEB -. "eject with a note" .-> K
+    K -. "signed eject" .-> EH
+    EH -. "flash loan move" .-> MO
 ```
 
 ## Identities and keys

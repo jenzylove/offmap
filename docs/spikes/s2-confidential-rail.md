@@ -13,4 +13,4 @@
 1. The versioned nonce salt must be read live from the verifying contract. `intents.near` returns `252812b3` from `current_salt`; the documented `e110f317` belongs to the confidential contract and makes user auth fail with "signature verification failed".
 2. The Intents SDK does not load next to near-api-js 5 (ESM import without extension), so the nonce and NEP-413 signing are implemented directly in `intents.mjs` from the spec.
 
-**Verdict.** Pass. The private custody and payout rail Offmap needs works on mainnet with an ordinary NEAR account key. Next: the same key held only inside the TDX agent.
+**Verdict.** Pass. The private custody and payout rail Offmap needs works on mainnet with an ordinary NEAR account key. Later done: the same key held only inside the TDX agent.

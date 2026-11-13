@@ -20,4 +20,4 @@ Flow inside one call from the cohort account:
 ```
 Cohort collateral and debt shares fall by exactly the user's share; the user's position holds the same collateral and debt; the helper holds zero tokens and is no longer authorized by the user.
 
-**Verdict.** Pass. Eject works on real Morpho liquidity on Base in one transaction, about 470k gas. Next: the NEAR contract signs this call for the cohort's chain signatures address after verifying the user's note and Merkle proof.
+**Verdict.** Pass. Eject works on real Morpho liquidity on Base in one transaction, about 470k gas. Later done: the NEAR contract signs this call for the cohort's chain signatures address after verifying the user's note and Merkle proof.
