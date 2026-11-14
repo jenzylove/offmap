@@ -71,7 +71,8 @@ export interface SwapStatus {
 }
 
 export async function fetchStatus(depositAddress: string): Promise<SwapStatus | { status: "NOT_FOUND" }> {
-  const r = await fetch(`${ONECLICK}/status?depositAddress=${encodeURIComponent(depositAddress)}`);
+  // Through our own route: 1Click only reports on keyed quotes when asked with the key.
+  const r = await fetch(`/api/deposit-status?address=${encodeURIComponent(depositAddress)}`, { cache: "no-store" });
   if (r.status === 404) return { status: "NOT_FOUND" };
   if (!r.ok) throw new Error(`1Click status ${r.status}`);
   return (await r.json()) as SwapStatus;

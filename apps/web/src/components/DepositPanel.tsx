@@ -117,7 +117,7 @@ const CHAIN_LABEL: Record<number, string> = { 8453: "Base", 1: "Ethereum" };
 const EXPLORER: Record<number, string> = { 8453: "https://basescan.org/tx/", 1: "https://etherscan.io/tx/" };
 
 /** One click deposit: the connected wallet opens with the token transfer filled in. Sending by hand still works. */
-function SendFromWallet({ depositAddress, pay, auto }: { depositAddress: string; pay: { chainId: number; token: string; amountRaw: string; symbol: string }; auto?: boolean }) {
+function SendFromWallet({ depositAddress, pay, auto, onSent }: { depositAddress: string; pay: { chainId: number; token: string; amountRaw: string; symbol: string }; auto?: boolean; onSent: (tx: string) => void }) {
   const [state, setState] = useState<{ busy?: string; tx?: string; error?: string }>({});
   const [has, setHas] = useState(false);
   useEffect(() => setHas(!!evmProvider()), []);
@@ -152,6 +152,7 @@ function SendFromWallet({ depositAddress, pay, auto }: { depositAddress: string;
       setState({ busy: "Confirm the transfer in your wallet…" });
       const tx = (await p.request({ method: "eth_sendTransaction", params: [{ from: from as `0x${string}`, to: pay.token as `0x${string}`, data, value: "0x0" }] })) as string;
       setState({ tx });
+      onSent(tx);
     } catch (e) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const err = e as any;
@@ -160,23 +161,13 @@ function SendFromWallet({ depositAddress, pay, auto }: { depositAddress: string;
     }
   }
 
-  if (state.tx)
-    return (
-      <p className="mt-6 text-[15px] text-cold">
-        Sent from your wallet.{" "}
-        <a className="underline underline-offset-4" href={(EXPLORER[pay.chainId] ?? "") + state.tx} target="_blank" rel="noreferrer">
-          See the transfer ↗
-        </a>{" "}
-        The status on the right updates by itself.
-      </p>
-    );
   return (
     <div className="mt-6">
       <button className="btn btn-primary" onClick={() => void send()} disabled={!!state.busy} data-testid="send-from-wallet">
         {state.busy ?? "Send from my wallet"}
       </button>
       <p className="mt-3 max-w-md text-[13px] text-ink-3">
-        Your wallet opens with the {pay.symbol} transfer on {chain} filled in. You confirm it there. Or send it by hand to the address below.
+        Your wallet opens with the {pay.symbol} transfer on {chain} filled in. You confirm it there.
       </p>
       {state.error && <p className="mt-2 text-[13px] text-bad" role="alert">{state.error}</p>}
     </div>
@@ -208,6 +199,25 @@ export function DepositPanel({
 }) {
   const [svg, setSvg] = useState("");
   const [copied, setCopied] = useState(false);
+  const [hasWallet, setHasWallet] = useState(false);
+  const sentKey = `offmap.sent.${depositAddress.toLowerCase()}`;
+  const [sentTx, setSentTx] = useState<string | null>(null);
+  useEffect(() => {
+    setHasWallet(!!evmProvider());
+    try {
+      setSentTx(sessionStorage.getItem(sentKey));
+    } catch {
+      /* storage blocked */
+    }
+  }, [sentKey]);
+  const markSent = (tx: string) => {
+    setSentTx(tx);
+    try {
+      sessionStorage.setItem(sentKey, tx);
+    } catch {
+      /* storage blocked */
+    }
+  };
   const left = useCountdown(deadline);
   useEffect(() => {
     QRCode.toString(depositAddress, { type: "svg", margin: 0, errorCorrectionLevel: "M", color: { dark: "#0b0c0e", light: "#00000000" } })
@@ -216,54 +226,89 @@ export function DepositPanel({
   }, [depositAddress]);
   const s = oneclick.status?.status ?? "NOT_FOUND";
   const details = oneclick.status && "swapDetails" in oneclick.status ? oneclick.status.swapDetails : undefined;
+  // A transfer sent from the wallet counts as received the moment the wallet returns it.
+  const at = Math.max(stage, sentTx ? 1 : 0);
+  const walletPays = !!pay && hasWallet;
+  const moving = at > 0 && !failed;
+
+  const byHand = (
+    <>
+      <div className="mt-6 flex flex-col gap-6 sm:flex-row sm:items-start">
+        <div className="w-[180px] flex-none rounded-2xl bg-[#eceef0] p-4">
+          <div className="aspect-square w-full" aria-label="Deposit address as a QR code" role="img" dangerouslySetInnerHTML={{ __html: svg }} />
+        </div>
+        <div className="min-w-0">
+          <div className="eyebrow">One time deposit address</div>
+          <div className="num mt-2 break-all text-[16px] leading-snug text-ink" data-testid="deposit-address">
+            {depositAddress}
+          </div>
+          <button
+            className="btn btn-sm mt-4"
+            onClick={() => {
+              void navigator.clipboard.writeText(depositAddress).then(() => {
+                setCopied(true);
+                setTimeout(() => setCopied(false), 1600);
+              });
+            }}
+          >
+            {copied ? "Copied" : "Copy address"}
+          </button>
+          {memo && (
+            <div className="mt-4 text-[14px]">
+              <span className="eyebrow">Memo, required</span> <span className="num">{memo}</span>
+            </div>
+          )}
+        </div>
+      </div>
+      {left && (
+        <div className="mt-8 flex items-baseline gap-3 rule-t pt-5">
+          <span className="eyebrow">Address expires in</span>
+          <span className={`num text-[20px] ${left.left < 600 ? "text-heat" : "text-ink"}`}>{left.left > 0 ? left.text : "expired"}</span>
+        </div>
+      )}
+      <p className="mt-4 max-w-md text-[14px] text-ink-3">Send from any wallet on that chain. If less arrives or it comes too late, it goes back to your refund address.</p>
+    </>
+  );
 
   return (
     <div className="grid gap-12 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-16">
       <div>
-        {amountLabel && (
-          <p className="text-[20px] leading-snug text-ink md:text-[22px]">
-            Send <span className="num text-cold">{amountLabel}</span> to this address.
-          </p>
-        )}
-        {pay && stage === 0 && !failed && <SendFromWallet depositAddress={depositAddress} pay={pay} auto={autoPay} />}
-        <div className="mt-6 flex flex-col gap-6 sm:flex-row sm:items-start">
-          <div className="w-[180px] flex-none rounded-2xl bg-[#eceef0] p-4">
-            <div className="aspect-square w-full" aria-label="Deposit address as a QR code" role="img" dangerouslySetInnerHTML={{ __html: svg }} />
-          </div>
-          <div className="min-w-0">
-            <div className="eyebrow">One time deposit address</div>
-            <div className="num mt-2 break-all text-[16px] leading-snug text-ink" data-testid="deposit-address">
-              {depositAddress}
-            </div>
-            <button
-              className="btn btn-sm mt-4"
-              onClick={() => {
-                void navigator.clipboard.writeText(depositAddress).then(() => {
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 1600);
-                });
-              }}
-            >
-              {copied ? "Copied" : "Copy address"}
-            </button>
-            {memo && (
-              <div className="mt-4 text-[14px]">
-                <span className="eyebrow">Memo, required</span> <span className="num">{memo}</span>
-              </div>
+        {moving ? (
+          <div data-testid="deposit-moving">
+            <p className="text-[20px] leading-snug text-ink md:text-[22px]">
+              {at >= 4 ? "Done. Your USDC is on its way to your wallet." : "Your deposit is in. Nothing else to do here."}
+            </p>
+            <p className="mt-3 max-w-md text-[14px] text-ink-2">
+              {at >= 4 ? "Payouts go out in round sized pieces after a short random wait, so they cannot be matched to your deposit." : "The steps on the right move by themselves as your loan goes through. You can leave this page and come back."}
+            </p>
+            {sentTx && pay && (
+              <a className="mt-4 inline-block text-[14px] text-cold underline underline-offset-4" href={(EXPLORER[pay.chainId] ?? "") + sentTx} target="_blank" rel="noreferrer">
+                Your transfer ↗
+              </a>
             )}
           </div>
-        </div>
-        {left && (
-          <div className="mt-8 flex items-baseline gap-3 rule-t pt-5">
-            <span className="eyebrow">Address expires in</span>
-            <span className={`num text-[20px] ${left.left < 600 ? "text-heat" : "text-ink"}`}>{left.left > 0 ? left.text : "expired"}</span>
-          </div>
+        ) : (
+          <>
+            {amountLabel && (
+              <p className="text-[20px] leading-snug text-ink md:text-[22px]">
+                Deposit <span className="num text-cold">{amountLabel}</span>.
+              </p>
+            )}
+            {walletPays && !failed && <SendFromWallet depositAddress={depositAddress} pay={pay!} auto={autoPay} onSent={markSent} />}
+            {walletPays ? (
+              <details className="mt-8 rule-t pt-5" data-testid="by-hand">
+                <summary className="cursor-pointer text-[14px] text-ink-2 hover:text-ink">Or send it by hand to a deposit address</summary>
+                {byHand}
+              </details>
+            ) : (
+              byHand
+            )}
+          </>
         )}
-        <p className="mt-4 max-w-md text-[14px] text-ink-3">Send from any wallet on that chain. If less arrives or it comes too late, it goes back to your refund address.</p>
       </div>
       <div>
         <div className="eyebrow mb-5">Live status</div>
-        <Timeline stages={stages} at={stage} failed={failed} />
+        <Timeline stages={stages} at={at} failed={failed} />
         <Details label="Details">
           <Row k="Deposit status, 1Click" v={s} sub={STATUS_WORDS[s]} />
           {details?.amountInFormatted && <Row k="Amount seen" v={details.amountInFormatted} />}
