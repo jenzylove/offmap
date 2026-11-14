@@ -15,6 +15,16 @@ import { LoanView } from "./LoanView";
 
 const STEPS = ["Connect", "Set up", "Deposit", "Your loan"];
 const DKEY = "offmap.deposit";
+const XKEY = "offmap.dismissed";
+
+/** Deposit addresses the user chose to leave behind, so an unpaid quote does not come back. */
+function readDismissed(): string[] {
+  try {
+    return JSON.parse(localStorage.getItem(XKEY) ?? "[]") as string[];
+  } catch {
+    return [];
+  }
+}
 
 function Stepper({ current }: { current: number }) {
   return (
@@ -153,7 +163,18 @@ export function AppFlow() {
     u.searchParams.set("deposit", d.depositAddress);
     window.history.replaceState(null, "", u.toString());
   }, []);
-  const clear = useCallback(() => {
+  const [dismissed, setDismissed] = useState<string[]>([]);
+  useEffect(() => setDismissed(readDismissed()), []);
+  const clear = useCallback((addresses?: string[]) => {
+    if (addresses?.length) {
+      const next = [...new Set([...readDismissed(), ...addresses.map((x) => x.toLowerCase())])].slice(-80);
+      setDismissed(next);
+      try {
+        localStorage.setItem(XKEY, JSON.stringify(next));
+      } catch {
+        /* storage blocked */
+      }
+    }
     setStarted(null);
     try {
       sessionStorage.removeItem(DKEY);
@@ -248,14 +269,18 @@ export function AppFlow() {
 
   const positions = pos.data.positions;
   const loans = positions.filter((p) => BigInt(p.debt) > 0n || BigInt(p.collateral) > 0n);
-  const pendingDeposit = positions.flatMap((p) => p.pending.filter((x) => x.kind === "deposit"))[0];
+  // Resume a deposit whose money has arrived. An unpaid quote only comes back if the user has not left it behind.
+  const deposits = positions.flatMap((p) => p.pending.filter((x) => x.kind === "deposit"));
+  const pendingDeposit =
+    deposits.find((x) => ["arrived", "onbase", "supplied"].includes(x.status)) ??
+    deposits.filter((x) => x.status === "waiting" && !dismissed.includes(x.depositAddress.toLowerCase())).at(-1);
 
   /* 4. deposit in progress */
   const live = started ?? (loans.length === 0 && pendingDeposit ? { depositAddress: pendingDeposit.depositAddress, label: "", startedAt: 0, cohort: "" } : null);
   if (live)
     return (
       <Shell step={2}>
-        <DepositStep d={live} positions={positions} onLoan={clear} onReset={clear} />
+        <DepositStep d={live} positions={positions} onLoan={() => clear()} onReset={() => clear([live.depositAddress, ...deposits.filter((x) => x.status === "waiting").map((x) => x.depositAddress)])} />
       </Shell>
     );
 
