@@ -268,6 +268,11 @@ select.field option {
   background: var(--paper-2);
   color: var(--ink);
 }
+select.field optgroup {
+  background: var(--paper-2);
+  color: var(--ink-3);
+  font-style: normal;
+}
 
 /* Range slider: the track runs from cold (safe) to hot (exposed) */
 .ltv-range {

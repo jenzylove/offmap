@@ -99,6 +99,7 @@ function DepositStep({ d, positions, onLoan, onReset }: { d: StartedDeposit; pos
       <DepositPanel
         depositAddress={d.depositAddress}
         memo={d.depositMemo}
+        pay={d.pay}
         amountLabel={d.label || undefined}
         deadline={d.deadline}
         stages={BORROW_STAGES}

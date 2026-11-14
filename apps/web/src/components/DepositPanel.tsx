@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import type { UserCohortPosition } from "@/lib/agent";
 import { ago } from "@/lib/format";
 import { fetchStatus, STATUS_WORDS, type SwapStatus } from "@/lib/oneclick";
+import { evmProvider } from "@/lib/session";
 import { Details, Row } from "./Bits";
 
 const FINAL = new Set(["SUCCESS", "REFUNDED", "FAILED"]);
@@ -112,9 +113,72 @@ export function borrowStage(oneclick: string, positions: UserCohortPosition[] | 
   return 0;
 }
 
+const CHAIN_LABEL: Record<number, string> = { 8453: "Base", 1: "Ethereum" };
+const EXPLORER: Record<number, string> = { 8453: "https://basescan.org/tx/", 1: "https://etherscan.io/tx/" };
+
+/** One click deposit: the connected wallet opens with the token transfer filled in. Sending by hand still works. */
+function SendFromWallet({ depositAddress, pay }: { depositAddress: string; pay: { chainId: number; token: string; amountRaw: string; symbol: string } }) {
+  const [state, setState] = useState<{ busy?: string; tx?: string; error?: string }>({});
+  const [has, setHas] = useState(false);
+  useEffect(() => setHas(!!evmProvider()), []);
+  if (!has) return null;
+  const chain = CHAIN_LABEL[pay.chainId] ?? "that chain";
+
+  async function send() {
+    const p = evmProvider();
+    if (!p) return;
+    try {
+      setState({ busy: "Check your wallet…" });
+      const accounts = (await p.request({ method: "eth_requestAccounts" })) as string[];
+      const from = accounts[0];
+      if (!from) throw new Error("The wallet returned no account.");
+      const want = "0x" + pay.chainId.toString(16);
+      const current = (await p.request({ method: "eth_chainId" })) as string;
+      if (current.toLowerCase() !== want) {
+        setState({ busy: `Switch to ${chain} in your wallet…` });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (p as any).request({ method: "wallet_switchEthereumChain", params: [{ chainId: want }] });
+      }
+      // ERC 20 transfer(address,uint256)
+      const data = ("0xa9059cbb" + depositAddress.slice(2).toLowerCase().padStart(64, "0") + BigInt(pay.amountRaw).toString(16).padStart(64, "0")) as `0x${string}`;
+      setState({ busy: "Confirm the transfer in your wallet…" });
+      const tx = (await p.request({ method: "eth_sendTransaction", params: [{ from: from as `0x${string}`, to: pay.token as `0x${string}`, data, value: "0x0" }] })) as string;
+      setState({ tx });
+    } catch (e) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const err = e as any;
+      const rejected = err?.code === 4001 || /reject|denied|cancel/i.test(String(err?.message ?? ""));
+      setState({ error: rejected ? "You cancelled it in your wallet. Nothing was sent." : `The wallet could not send it: ${String(err?.shortMessage ?? err?.message ?? err).slice(0, 160)}` });
+    }
+  }
+
+  if (state.tx)
+    return (
+      <p className="mt-6 text-[15px] text-cold">
+        Sent from your wallet.{" "}
+        <a className="underline underline-offset-4" href={(EXPLORER[pay.chainId] ?? "") + state.tx} target="_blank" rel="noreferrer">
+          See the transfer ↗
+        </a>{" "}
+        The status on the right updates by itself.
+      </p>
+    );
+  return (
+    <div className="mt-6">
+      <button className="btn btn-primary" onClick={() => void send()} disabled={!!state.busy} data-testid="send-from-wallet">
+        {state.busy ?? "Send from my wallet"}
+      </button>
+      <p className="mt-3 max-w-md text-[13px] text-ink-3">
+        Your wallet opens with the {pay.symbol} transfer on {chain} filled in. You confirm it there. Or send it by hand to the address below.
+      </p>
+      {state.error && <p className="mt-2 text-[13px] text-bad" role="alert">{state.error}</p>}
+    </div>
+  );
+}
+
 export function DepositPanel({
   depositAddress,
   memo,
+  pay,
   amountLabel,
   deadline,
   stages,
@@ -124,6 +188,7 @@ export function DepositPanel({
 }: {
   depositAddress: string;
   memo?: string;
+  pay?: { chainId: number; token: string; amountRaw: string; symbol: string };
   amountLabel?: string;
   deadline?: string;
   stages: Stage[];
@@ -150,6 +215,7 @@ export function DepositPanel({
             Send <span className="num text-cold">{amountLabel}</span> to this address.
           </p>
         )}
+        {pay && stage === 0 && !failed && <SendFromWallet depositAddress={depositAddress} pay={pay} />}
         <div className="mt-6 flex flex-col gap-6 sm:flex-row sm:items-start">
           <div className="w-[180px] flex-none rounded-2xl bg-[#eceef0] p-4">
             <div className="aspect-square w-full" aria-label="Deposit address as a QR code" role="img" dangerouslySetInnerHTML={{ __html: svg }} />

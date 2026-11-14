@@ -14,7 +14,7 @@ const STEPS: { t: string; d: string; tag: string; visual: () => ReactNode }[] = 
   {
     t: "Deposit Bitcoin or ETH",
     tag: "through NEAR Intents",
-    d: "Send BTC, cbBTC or WBTC from Bitcoin, Base or Ethereum, or WETH on Base. It lands in a private balance, not in a public wallet tied to you.",
+    d: "Send BTC from Bitcoin, cbBTC from Base or Ethereum, or WETH on Base. It lands in a private balance, not in a public wallet tied to you.",
     visual: () => <DepositVisual />,
   },
   {
@@ -93,7 +93,7 @@ function SignVisual() {
 }
 
 function DepositVisual() {
-  const from = ["Bitcoin", "cbBTC · Base", "cbBTC · Ethereum", "WBTC · Ethereum", "WETH · Base"];
+  const from = ["Bitcoin", "cbBTC · Base", "cbBTC · Ethereum", "WETH · Base"];
   return (
     <div className="relative grid w-full max-w-[420px] grid-cols-[1fr_auto_1fr] items-center gap-4">
       <ul className="space-y-2">

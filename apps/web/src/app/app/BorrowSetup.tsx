@@ -25,7 +25,7 @@ const ROUTES: Record<string, string[]> = {
   "weth-usdc": ["nep141:base-0x4200000000000000000000000000000000000006.omft.near"],
 };
 const ROUTE_NOTE: Record<string, string> = {
-  "cbbtc-usdc": "Bitcoin, cbBTC on Base or Ethereum, or WBTC on Ethereum.",
+  "cbbtc-usdc": "Bitcoin, or cbBTC on Base or Ethereum.",
   "weth-usdc": "The ETH pool takes WETH on Base today. Holding plain ETH? Wrap it to WETH in your wallet first.",
 };
 /** Plain words for the errors a quote can come back with. */
@@ -43,6 +43,8 @@ const CHOICE: Record<string, { name: string; sub: string }> = {
 };
 
 export interface StartedDeposit extends BorrowQuoteResp {
+  /** Set when the deposit is a token on a chain a browser wallet can pay from in one click. */
+  pay?: { chainId: number; token: string; amountRaw: string; symbol: string };
   label: string;
   startedAt: number;
   cohort: string;
@@ -135,7 +137,9 @@ export function BorrowSetup({ token, wallet, tokens, tokensError, onStarted }: {
         }),
       });
       if (!r?.depositAddress) throw new Error("The agent answered without a deposit address.");
-      onStarted({ ...r, label: `${amount} ${asset.symbol} on ${chainName(asset.blockchain)}`, startedAt: Date.now(), cohort: cohort.id });
+      const chainId = asset.blockchain === "base" ? 8453 : asset.blockchain === "eth" ? 1 : 0;
+      const pay = chainId && asset.contractAddress ? { chainId, token: asset.contractAddress, amountRaw: amountUnits.toString(), symbol: asset.symbol } : undefined;
+      onStarted({ ...r, pay, label: `${amount} ${asset.symbol} on ${chainName(asset.blockchain)}`, startedAt: Date.now(), cohort: cohort.id });
     } catch (e) {
       setErr(quoteError(e instanceof Error ? e.message : String(e), asset ? `${asset.symbol} on ${chainName(asset.blockchain)}` : "this asset", asset ? chainName(asset.blockchain) : "that chain"));
     } finally {
