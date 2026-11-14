@@ -269,11 +269,10 @@ export function AppFlow() {
 
   const positions = pos.data.positions;
   const loans = positions.filter((p) => BigInt(p.debt) > 0n || BigInt(p.collateral) > 0n);
-  // Resume a deposit whose money has arrived. An unpaid quote only comes back if the user has not left it behind.
+  // Only a deposit whose money has arrived takes over the screen. An unpaid address from earlier is offered as a link, never forced.
   const deposits = positions.flatMap((p) => p.pending.filter((x) => x.kind === "deposit"));
-  const pendingDeposit =
-    deposits.find((x) => ["arrived", "onbase", "supplied"].includes(x.status)) ??
-    deposits.filter((x) => x.status === "waiting" && !dismissed.includes(x.depositAddress.toLowerCase())).at(-1);
+  const pendingDeposit = deposits.find((x) => ["arrived", "onbase", "supplied"].includes(x.status));
+  const unpaid = deposits.filter((x) => x.status === "waiting" && !dismissed.includes(x.depositAddress.toLowerCase())).at(-1);
 
   /* 4. deposit in progress */
   const live = started ?? (loans.length === 0 && pendingDeposit ? { depositAddress: pendingDeposit.depositAddress, label: "", startedAt: 0, cohort: "" } : null);
@@ -304,6 +303,19 @@ export function AppFlow() {
   return (
     <Shell step={1}>
       <StepHead title="Set up your loan.">Pick your collateral, how much to deposit and how much USDC to borrow. You will see your liquidation price before anything is sent.</StepHead>
+      {unpaid && (
+        <p className="mb-10 text-[14px] text-ink-2" data-testid="unpaid-note">
+          You asked for a deposit address earlier and nothing has arrived at it.{" "}
+          <button className="underline underline-offset-4 hover:text-ink" onClick={() => setStarted({ depositAddress: unpaid.depositAddress, label: "", startedAt: 0, cohort: "" })}>
+            Open it
+          </button>{" "}
+          or{" "}
+          <button className="underline underline-offset-4 hover:text-ink" onClick={() => clear(deposits.filter((x) => x.status === "waiting").map((x) => x.depositAddress))}>
+            forget it
+          </button>
+          . Or just set up a new loan below.
+        </p>
+      )}
       <BorrowSetup token={s.token} wallet={wallet} tokens={tokens.data ?? []} tokensError={tokens.error} onStarted={start} />
     </Shell>
   );

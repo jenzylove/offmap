@@ -135,7 +135,7 @@ export function HunterView() {
               This is what a <span className="text-heat-grad">hunter</span> sees.
             </h1>
             <p className="rise mt-7 max-w-xl text-[17px] leading-relaxed text-ink-2 md:text-[19px]">
-              Every glow is a live loan on Morpho, Base, placed at the price where it gets liquidated. Taller means more debt waiting there. The one cold point is Offmap: all of its users, seen as one borrower.
+              Every glow is a live loan on Morpho, Base, placed at the price where it gets liquidated. Taller means more debt waiting there. The single blue point is Offmap: all of its borrowers, seen from outside as one.
             </p>
             {t.data && (
               <div className="rise num mt-10 grid max-w-xl grid-cols-2 gap-6 text-[13px]">
@@ -177,11 +177,11 @@ export function HunterView() {
 
           <div className="rule-t py-20 md:py-28">
             <Reveal>
-              <SectionHead n="03" kicker="Now look for an Offmap user" title="You will find one cold point.">
-                Not on Morpho, not on Base, not on NEAR, not in any API. Each market shows Offmap as one borrower. The contract stores totals and a salted root that cannot be opened by guessing amounts.
+              <SectionHead n="03" kicker="Now try to find an Offmap user" title="You can't.">
+                Every loan above belongs to a wallet anyone can look up. People who borrow through Offmap are not in that list at all. Morpho shows the whole Offmap pool as one single borrower, so nobody has a personal liquidation price for a hunter to aim at.
               </SectionHead>
               <p className="mt-6 max-w-2xl text-[15px] leading-relaxed text-ink-3">
-                One honest caveat: while a pooled position holds a single loan, its total is that loan. The crowd you hide in grows with every user, and the leak study on the proof page shows the live number.
+                One honest limit: the pool hides you among its borrowers, so if it holds only one loan, the pool total is that loan. The more people borrow, the better everyone is hidden. The proof page shows the live pool size.
               </p>
             </Reveal>
           </div>
