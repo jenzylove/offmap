@@ -119,7 +119,7 @@ function DepositStep({ d, positions, onLoan, onReset }: { d: StartedDeposit; pos
         oneclick={oc}
       />
       <div className="mt-12 flex flex-wrap gap-3 rule-t pt-8">
-        {(stage >= 3 || hasLoan) && (
+        {hasLoan && (
           <button className="btn btn-primary" onClick={onLoan}>
             Go to your loan
           </button>
