@@ -27,6 +27,9 @@ const b58 = (bytes) => { const A = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijk
 // 1. The contract requires a TEE and has an approved measurement set.
 const info = await view(CONTRACT, "get_contract_info");
 check("offmapfi.near requires a TEE attested agent", info?.requires_tee === true, `mode ${info?.mode}`);
+const keyList = await near("query", { request_type: "view_access_key_list", account_id: CONTRACT });
+const fullKeys = (keyList?.keys ?? []).filter((k) => k.access_key.permission === "FullAccess");
+check("offmapfi.near has no full access key: its code changes only through the 48 hour public wind down", Array.isArray(keyList?.keys) && fullKeys.length === 0, `${keyList?.keys?.length ?? "?"} key(s), all limited to the timelocked owner calls`);
 const cfg = await view(CONTRACT, "config");
 const approvedAll = (cfg?.approved_measurements ?? []).map((m) => m.app_compose_hash_payload);
 
