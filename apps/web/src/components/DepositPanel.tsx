@@ -1,7 +1,7 @@
 "use client";
 
 import QRCode from "qrcode";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { UserCohortPosition } from "@/lib/agent";
 import { ago } from "@/lib/format";
 import { fetchStatus, STATUS_WORDS, type SwapStatus } from "@/lib/oneclick";
@@ -117,10 +117,18 @@ const CHAIN_LABEL: Record<number, string> = { 8453: "Base", 1: "Ethereum" };
 const EXPLORER: Record<number, string> = { 8453: "https://basescan.org/tx/", 1: "https://etherscan.io/tx/" };
 
 /** One click deposit: the connected wallet opens with the token transfer filled in. Sending by hand still works. */
-function SendFromWallet({ depositAddress, pay }: { depositAddress: string; pay: { chainId: number; token: string; amountRaw: string; symbol: string } }) {
+function SendFromWallet({ depositAddress, pay, auto }: { depositAddress: string; pay: { chainId: number; token: string; amountRaw: string; symbol: string }; auto?: boolean }) {
   const [state, setState] = useState<{ busy?: string; tx?: string; error?: string }>({});
   const [has, setHas] = useState(false);
   useEffect(() => setHas(!!evmProvider()), []);
+  // Straight from the set up button: open the wallet once, without a second click.
+  const fired = useRef(false);
+  useEffect(() => {
+    if (!auto || !has || fired.current) return;
+    fired.current = true;
+    void send();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auto, has]);
   if (!has) return null;
   const chain = CHAIN_LABEL[pay.chainId] ?? "that chain";
 
@@ -179,6 +187,7 @@ export function DepositPanel({
   depositAddress,
   memo,
   pay,
+  autoPay,
   amountLabel,
   deadline,
   stages,
@@ -189,6 +198,7 @@ export function DepositPanel({
   depositAddress: string;
   memo?: string;
   pay?: { chainId: number; token: string; amountRaw: string; symbol: string };
+  autoPay?: boolean;
   amountLabel?: string;
   deadline?: string;
   stages: Stage[];
@@ -215,7 +225,7 @@ export function DepositPanel({
             Send <span className="num text-cold">{amountLabel}</span> to this address.
           </p>
         )}
-        {pay && stage === 0 && !failed && <SendFromWallet depositAddress={depositAddress} pay={pay} />}
+        {pay && stage === 0 && !failed && <SendFromWallet depositAddress={depositAddress} pay={pay} auto={autoPay} />}
         <div className="mt-6 flex flex-col gap-6 sm:flex-row sm:items-start">
           <div className="w-[180px] flex-none rounded-2xl bg-[#eceef0] p-4">
             <div className="aspect-square w-full" aria-label="Deposit address as a QR code" role="img" dangerouslySetInnerHTML={{ __html: svg }} />

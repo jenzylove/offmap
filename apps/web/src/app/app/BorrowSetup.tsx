@@ -9,6 +9,7 @@ import { readLevels } from "@/lib/morpho";
 import { addressLooksValid, CHAIN_NAMES, collateralAssets, usdcTargets, type OneClickToken } from "@/lib/oneclick";
 import { useLive } from "@/lib/useLive";
 import { readBalance } from "@/lib/balance";
+import { evmProvider } from "@/lib/session";
 import { loadWorld } from "@/lib/world";
 import { basescanAddr } from "@/lib/config";
 
@@ -45,6 +46,8 @@ const CHOICE: Record<string, { name: string; sub: string }> = {
 export interface StartedDeposit extends BorrowQuoteResp {
   /** Set when the deposit is a token on a chain a browser wallet can pay from in one click. */
   pay?: { chainId: number; token: string; amountRaw: string; symbol: string };
+  /** True only right after the user pressed the button: the wallet opens by itself, once. Never saved. */
+  autoPay?: boolean;
   label: string;
   startedAt: number;
   cohort: string;
@@ -86,6 +89,9 @@ export function BorrowSetup({ token, wallet, tokens, tokensError, onStarted }: {
   }, [usdc, recvAsset]);
 
   const asset = all.find((t) => t.assetId === assetId);
+  const [hasWallet, setHasWallet] = useState(false);
+  useEffect(() => setHasWallet(!!evmProvider()), []);
+  const walletPays = hasWallet && !!asset?.contractAddress && (asset.blockchain === "base" || asset.blockchain === "eth");
   const recv = usdc.find((t) => t.assetId === recvAsset);
   const refundDefault = asset && isEvmChain(asset.blockchain) ? wallet : "";
   const refund = editRefund || !refundDefault ? refundAddr : refundDefault;
@@ -139,7 +145,7 @@ export function BorrowSetup({ token, wallet, tokens, tokensError, onStarted }: {
       if (!r?.depositAddress) throw new Error("The agent answered without a deposit address.");
       const chainId = asset.blockchain === "base" ? 8453 : asset.blockchain === "eth" ? 1 : 0;
       const pay = chainId && asset.contractAddress ? { chainId, token: asset.contractAddress, amountRaw: amountUnits.toString(), symbol: asset.symbol } : undefined;
-      onStarted({ ...r, pay, label: `${amount} ${asset.symbol} on ${chainName(asset.blockchain)}`, startedAt: Date.now(), cohort: cohort.id });
+      onStarted({ ...r, pay, autoPay: !!pay, label: `${amount} ${asset.symbol} on ${chainName(asset.blockchain)}`, startedAt: Date.now(), cohort: cohort.id });
     } catch (e) {
       setErr(quoteError(e instanceof Error ? e.message : String(e), asset ? `${asset.symbol} on ${chainName(asset.blockchain)}` : "this asset", asset ? chainName(asset.blockchain) : "that chain"));
     } finally {
@@ -343,10 +349,10 @@ export function BorrowSetup({ token, wallet, tokens, tokensError, onStarted }: {
               <span>I understand that if {cohort.collateralSymbol} falls to my liquidation price, part of my collateral is sold to repay the loan.</span>
             </label>
             <button className="btn btn-primary mt-6 w-full" disabled={problems.length > 0 || busy} onClick={submit} data-testid="confirm-borrow">
-              {busy ? "Asking the agent…" : "Get my deposit address"}
+              {busy ? "Asking the agent…" : walletPays ? "Deposit from my wallet" : "Get my deposit address"}
             </button>
             <p className="mt-3 min-h-5 text-[13px] text-ink-3" aria-live="polite">
-              {problems[0] ?? "Nothing is sent yet. You get a one time address to deposit to."}
+              {problems[0] ?? (walletPays ? "Your wallet opens next with the transfer filled in. Nothing moves until you confirm it there." : "Nothing is sent yet. You get a one time address to deposit to.")}
             </p>
             {err && <ErrorLine>{err}</ErrorLine>}
           </div>

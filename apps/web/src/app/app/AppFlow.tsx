@@ -110,6 +110,7 @@ function DepositStep({ d, positions, onLoan, onReset }: { d: StartedDeposit; pos
         depositAddress={d.depositAddress}
         memo={d.depositMemo}
         pay={d.pay}
+        autoPay={d.autoPay}
         amountLabel={d.label || undefined}
         deadline={d.deadline}
         stages={BORROW_STAGES}
@@ -155,7 +156,7 @@ export function AppFlow() {
   const start = useCallback((d: StartedDeposit) => {
     setStarted(d);
     try {
-      sessionStorage.setItem(DKEY, JSON.stringify(d));
+      sessionStorage.setItem(DKEY, JSON.stringify({ ...d, autoPay: false }));
     } catch {
       /* storage blocked */
     }
