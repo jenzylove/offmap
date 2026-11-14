@@ -1,0 +1,77 @@
+{
+  "contract": "offmapfi.near",
+  "signer": "864a509491f1c806e57e0c7ed3423737195cfb19783340576166654a8ab587b5",
+  "at": "2026-11-14T11:37:26.921Z",
+  "log": [
+    {
+      "name": "A stranger registers as the agent with a made up attestation",
+      "method": "register_agent",
+      "tx": "AgwHFtkkPTzhH1TSCpp7Lvtp6zVt3MxF3QAkrCYPB1xo",
+      "refused": true,
+      "answer": "attestation verification failed: dcap verification failed: TrailingData(CertRevocationList)"
+    },
+    {
+      "name": "A stranger whitelists their own agent",
+      "method": "whitelist_agent_dev",
+      "tx": "97TWFfw8daDoCnvk14DB7t43hWGjdFXk5okz9F52XwDh",
+      "refused": true,
+      "answer": "dev mode is off"
+    },
+    {
+      "name": "A stranger posts a solvency statement",
+      "method": "submit_statement",
+      "tx": "8Uad31iftjx64msMRCp7AWkicqrFayt1NDAajoZ8mPGu",
+      "refused": true,
+      "answer": "agent not registered"
+    },
+    {
+      "name": "A stranger opens a batch lock",
+      "method": "begin_batch",
+      "tx": "GDnnPf5Sam8q88MRGnB7rNLGLbmfjTHnEwtABgSnRNg9",
+      "refused": true,
+      "answer": "agent not registered"
+    },
+    {
+      "name": "A stranger asks for a signature over the pool",
+      "method": "request_signature",
+      "tx": "478b8JypWQdioRmq13XL44n3mMfh1CEB4mANhFuKYbPn",
+      "refused": true,
+      "answer": "agent not registered"
+    },
+    {
+      "name": "A stranger proposes a new config",
+      "method": "propose_config",
+      "tx": "7zMViatkhE8dH6RbXRnUWJXu1UGUXQ8UM8oTnbdB6AjP",
+      "refused": true,
+      "answer": "only the contract account itself"
+    },
+    {
+      "name": "A stranger sweeps the contract's NEAR",
+      "method": "sweep",
+      "tx": "24MJoBQSX1c6qHzZEa4skWD1Uoh88xCJywTnCsJwYjZv",
+      "refused": true,
+      "answer": "only the contract account itself"
+    },
+    {
+      "name": "A stranger announces a code swap",
+      "method": "announce_wind_down",
+      "tx": "B3x5JbfRfFnxjcJyEu9i26histvURkYQJsKeecDtmErg",
+      "refused": true,
+      "answer": "only the contract account itself"
+    },
+    {
+      "name": "A stranger forces recovery mode while the agent is alive",
+      "method": "recover",
+      "tx": "5HhBSNs8e1zErzDo7MZFSZyW1hcivBZcoFL9Escy5Kbh",
+      "refused": true,
+      "answer": "agent is still active"
+    },
+    {
+      "name": "Someone ejects with a forged note",
+      "method": "eject",
+      "tx": "9EdWsEnvLt6FkQ991qwupiKbtkGVYjGgJ8ztv7rwMcwD",
+      "refused": true,
+      "answer": "invalid Merkle proof"
+    }
+  ]
+}

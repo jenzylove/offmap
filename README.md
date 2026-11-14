@@ -166,23 +166,31 @@ Every loss is published as an event with no user id. The order is fixed in [`wat
 
 ## Try to break it
 
-The contract refuses every one of these. Each row is a real transaction on NEAR testnet, signed against the real NEAR MPC, from the full run in [`contracts/near/TESTNET.md`](contracts/near/TESTNET.md). The same rules are covered by the 69 contract tests.
+We attacked the live contract ourselves. Each row is a real transaction on **NEAR mainnet** against `offmapfi.near`, sent from an ordinary account, and the contract refused every one. Run them again with [`mainnet-refusals.mjs`](contracts/near/scripts/mainnet-refusals.mjs); the raw results are in [`mainnet-refusals.run.json`](contracts/near/scripts/mainnet-refusals.run.json).
 
-| Attack | The contract's answer | Transaction |
+| Attack | The contract's answer | Mainnet transaction |
 |---|---|---|
-| A stranger tries to register as the agent | refused: agent is not whitelisted | [`D4wpNQcq…`](https://testnet.nearblocks.io/txns/D4wpNQcq9Gwame6ebQJmm2wTKhSp8NX57dyy8CH9sfZk) |
-| A stranger tries to whitelist their own agent | refused: only the deployer | [`9VyadMT6…`](https://testnet.nearblocks.io/txns/9VyadMT6qksG84cyV6AvMZBpf3ZT572XusYNdy3nfMSv) |
-| An unregistered account posts a solvency statement | refused: agent not registered | [`5kvvv71r…`](https://testnet.nearblocks.io/txns/5kvvv71rdKVeTReKu7pez4xz95wXEzUChjdRZ2opUryw) |
+| A stranger registers as the agent with a made up attestation | refused: attestation verification failed | [`AgwHFtkk…`](https://nearblocks.io/txns/AgwHFtkkPTzhH1TSCpp7Lvtp6zVt3MxF3QAkrCYPB1xo) |
+| A stranger whitelists their own agent | refused: dev mode is off | [`97TWFfw8…`](https://nearblocks.io/txns/97TWFfw8daDoCnvk14DB7t43hWGjdFXk5okz9F52XwDh) |
+| A stranger posts a solvency statement | refused: agent not registered | [`8Uad31if…`](https://nearblocks.io/txns/8Uad31iftjx64msMRCp7AWkicqrFayt1NDAajoZ8mPGu) |
+| A stranger opens a batch lock | refused: agent not registered | [`GDnnPf5S…`](https://nearblocks.io/txns/GDnnPf5Sam8q88MRGnB7rNLGLbmfjTHnEwtABgSnRNg9) |
+| A stranger asks for a signature over the pool | refused: agent not registered | [`478b8Jyp…`](https://nearblocks.io/txns/478b8JypWQdioRmq13XL44n3mMfh1CEB4mANhFuKYbPn) |
+| A stranger proposes new agent code | refused: only the contract account itself | [`7zMViatk…`](https://nearblocks.io/txns/7zMViatkhE8dH6RbXRnUWJXu1UGUXQ8UM8oTnbdB6AjP) |
+| A stranger sweeps the contract's NEAR | refused: only the contract account itself | [`24MJoBQS…`](https://nearblocks.io/txns/24MJoBQSX1c6qHzZEa4skWD1Uoh88xCJywTnCsJwYjZv) |
+| A stranger announces a code swap | refused: only the contract account itself | [`B3x5JbfR…`](https://nearblocks.io/txns/B3x5JbfRfFnxjcJyEu9i26histvURkYQJsKeecDtmErg) |
+| A stranger forces recovery mode while the agent is alive | refused: agent is still active | [`5HhBSNs8…`](https://nearblocks.io/txns/5HhBSNs8e1zErzDo7MZFSZyW1hcivBZcoFL9Escy5Kbh) |
+| Someone ejects with a forged note | refused: invalid Merkle proof | [`9EdWsEnv…`](https://nearblocks.io/txns/9EdWsEnvLt6FkQ991qwupiKbtkGVYjGgJ8ztv7rwMcwD) |
+
+Four more attacks need a registered agent or a real loan to attempt, so they ran on NEAR testnet with the same contract code and the real NEAR MPC ([full run](contracts/near/TESTNET.md)):
+
+| Attack | The contract's answer | Testnet transaction |
+|---|---|---|
 | The agent replays an old statement | refused: batch_id must increase | [`3BKqSLZ6…`](https://testnet.nearblocks.io/txns/3BKqSLZ6CfSmCxyuQ5bo4E7s2kRHAJNnSBfdyMDZ1xH1) |
 | The agent posts a statement that borrows past the pool's ceiling | refused: cohort ceiling exceeded | [`HQShJC1y…`](https://testnet.nearblocks.io/txns/HQShJC1y8j5jHP8m7ECx2Y7EhFuCugrtSU3yxyX3pHXB) |
 | The agent posts a stale statement | refused: statement is stale | [`97ZsRPQ1…`](https://testnet.nearblocks.io/txns/97ZsRPQ1ato69vxStDH7WVQWfA1K34gWhnenFMVHGf3Y) |
-| An unregistered account asks for a signature over the pool | refused: agent not registered | [`G3W8Rb3C…`](https://testnet.nearblocks.io/txns/G3W8Rb3CNnwBqcP38stgifd7KWKDYS5xurG2T9Fv4YZF) |
-| Someone ejects with a forged proof | refused: invalid Merkle proof | [`97sYTppk…`](https://testnet.nearblocks.io/txns/97sYTppk7jQqyZVAFp4GTVnwtJk541yXtnE5Jc1oTZio) |
 | Someone ejects the same loan twice | refused: leaf already ejected | [`GP8WmYan…`](https://testnet.nearblocks.io/txns/GP8WmYanYV21EsGdUHnaE7zP6Ej7NPfLFkXmCpX1yqAx) |
-| Someone forces recovery mode while the agent is alive | refused: agent is still active | [`4yByXSxd…`](https://testnet.nearblocks.io/txns/4yByXSxdFtWt9Hjb1KENotVcP4c24JLN4XL4dcwmsjxT) |
-| The agent asks for a signature after recovery | refused: recovery mode, signing closed | [`3wQ39sJ9…`](https://testnet.nearblocks.io/txns/3wQ39sJ9xMjnjdyzGdm7SSQ5FWFAp3VT9FVPfUTmXrrJ) |
 
-On mainnet, `node scripts/judge-checks.mjs` shows the same guards are live: the contract requires a TEE, holds no full access key, and lists exactly one agent key.
+The same rules are covered by the 69 contract tests, which run in CI on every push.
 
 ## Who you trust
 

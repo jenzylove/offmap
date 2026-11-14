@@ -51,3 +51,9 @@
 - The [hunter view](https://offmap.jdollar.site/hunter) reads any Base wallet's Morpho loans from the public API and shows the liquidation price and how far it is from today.
 - The [proof page](https://offmap.jdollar.site/proof#trust) lists who you still trust and what stops each of them, and states the live size of the pools.
 - Commit 83e6a34. Submitted to NEAR HACKATHON in the DeFi and Privacy tracks.
+
+## Nov 14 2026: attacks refused on mainnet, CI
+
+- Ten calls a stranger should never be allowed to make were sent to `offmapfi.near` on mainnet. All ten were refused. First and last: [register with a made up attestation](https://nearblocks.io/txns/AgwHFtkkPTzhH1TSCpp7Lvtp6zVt3MxF3QAkrCYPB1xo), [eject with a forged note](https://nearblocks.io/txns/9EdWsEnvLt6FkQ991qwupiKbtkGVYjGgJ8ztv7rwMcwD). The full list is in the README and in `contracts/near/scripts/mainnet-refusals.run.json`.
+- CI runs the core, agent and web tests, the 69 contract tests, the eject on a Base fork and the judge checks against mainnet on every push.
+- Judge checks: 11 of 11, with a new check that the contract holds no full access key.
