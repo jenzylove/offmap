@@ -53,6 +53,10 @@ export interface StartedDeposit extends BorrowQuoteResp {
   cohort: string;
 }
 
+/** New deposits are off while the agent cannot complete batches. Funds already deposited stay on the pool address, which only the contract controls. */
+const PAUSED = true;
+const PAUSE_NOTE = "New loans are paused while we fix how the agent receives its signatures. Nothing already deposited is at risk. Everything else on the site is live.";
+
 export function BorrowSetup({ token, wallet, tokens, tokensError, onStarted }: { token: string; wallet: string; tokens: OneClickToken[]; tokensError: string | null; onStarted: (d: StartedDeposit) => void }) {
   const [cohort, setCohort] = useState<CohortDef>(COHORTS[0]!);
   const market = useLive(() => readLevels(cohort, 1), [cohort.id], 120_000);
@@ -348,11 +352,11 @@ export function BorrowSetup({ token, wallet, tokens, tokensError, onStarted }: {
               <input type="checkbox" className="mt-0.5 h-4 w-4 flex-none accent-[var(--cold)]" checked={accept} onChange={(e) => setAccept(e.target.checked)} />
               <span>I understand that if {cohort.collateralSymbol} falls to my liquidation price, part of my collateral is sold to repay the loan.</span>
             </label>
-            <button className="btn btn-primary mt-6 w-full" disabled={problems.length > 0 || busy} onClick={submit} data-testid="confirm-borrow">
-              {busy ? "Asking the agent…" : walletPays ? "Deposit from my wallet" : "Get my deposit address"}
+            <button className="btn btn-primary mt-6 w-full" disabled={PAUSED || problems.length > 0 || busy} onClick={submit} data-testid="confirm-borrow">
+              {PAUSED ? "New loans are paused" : busy ? "Asking the agent…" : walletPays ? "Deposit from my wallet" : "Get my deposit address"}
             </button>
             <p className="mt-3 min-h-5 text-[13px] text-ink-3" aria-live="polite">
-              {problems[0] ?? (walletPays ? "Your wallet opens next with the transfer filled in. Nothing moves until you confirm it there." : "Nothing is sent yet. You get a one time address to deposit to.")}
+              {PAUSED ? PAUSE_NOTE : problems[0] ?? (walletPays ? "Your wallet opens next with the transfer filled in. Nothing moves until you confirm it there." : "Nothing is sent yet. You get a one time address to deposit to.")}
             </p>
             {err && <ErrorLine>{err}</ErrorLine>}
           </div>
