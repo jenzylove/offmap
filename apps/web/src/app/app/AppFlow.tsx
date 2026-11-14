@@ -105,7 +105,7 @@ function DepositStep({ d, positions, onLoan, onReset }: { d: StartedDeposit; pos
   const hasLoan = positions?.some((p) => BigInt(p.debt) > 0n || BigInt(p.collateral) > 0n);
   return (
     <>
-      <StepHead title="Send your deposit.">Your deposit goes into a private balance through NEAR Intents. From there it joins the next batch, and your USDC follows.</StepHead>
+      <StepHead title={stage >= 1 && !failed ? "Your loan is on its way." : "Send your deposit."}>Your deposit goes into a private balance through NEAR Intents. From there it joins the next batch, and your USDC follows.</StepHead>
       <DepositPanel
         depositAddress={d.depositAddress}
         memo={d.depositMemo}
