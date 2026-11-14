@@ -162,6 +162,8 @@ Run locally: `pnpm install && pnpm -r test` (core, agent, web), `cd contracts/ne
 
 The same table is live on the [proof page](https://offmap.jdollar.site/proof#trust), next to the current pool size.
 
+<img src="docs/assets/trust.png" alt="The proof page section that lists who you still trust and what stops each of them" width="100%" />
+
 ## Scope and limits
 
 - While the agent runs, you trust it and its sealed hardware: it holds the private balance and the contract signs what it asks for. If it stops, eject works through the contract without it.
