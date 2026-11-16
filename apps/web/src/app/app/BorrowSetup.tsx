@@ -54,7 +54,7 @@ export interface StartedDeposit extends BorrowQuoteResp {
 }
 
 /** New deposits are off while the agent cannot complete batches. Funds already deposited stay on the pool address, which only the contract controls. */
-const PAUSED = true;
+const PAUSED = false;
 const PAUSE_NOTE = "New loans are paused while we fix how the agent receives its signatures. Nothing already deposited is at risk. Everything else on the site is live.";
 
 export function BorrowSetup({ token, wallet, tokens, tokensError, onStarted }: { token: string; wallet: string; tokens: OneClickToken[]; tokensError: string | null; onStarted: (d: StartedDeposit) => void }) {
