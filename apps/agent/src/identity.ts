@@ -38,8 +38,44 @@ export interface Identity {
   registration: { status: "not_needed" | "waiting_for_funds" | "registering" | "registered" | "failed"; error?: string; at?: number; surplus?: string };
 }
 
-/** Rotates to the next NEAR RPC only on transport trouble (rate limits, 5xx, timeouts); contract errors pass through untouched. */
-class RotatingRpcProvider extends JsonRpcProvider {
+/** The hash NEAR gives a signed transaction: base58 of sha256 over the borsh encoded transaction. */
+export function signedTxHash(signedTx: { transaction: { encode(): Uint8Array } }): string {
+  return bs58.encode(createHash("sha256").update(signedTx.transaction.encode()).digest());
+}
+
+/**
+ * Rotates to the next NEAR RPC only on transport trouble (rate limits, 5xx, timeouts); contract errors pass through untouched.
+ *
+ * An RPC can fail while it waits on a transaction that still executes (seen on mainnet: request_signature succeeded,
+ * the MPC signed, and the RPC answered "Internal server error"). So when a send errors, the transaction is looked up
+ * by its hash on every RPC before the error counts. If it ran, its real outcome is returned; if not, the error stands.
+ */
+export class RotatingRpcProvider extends JsonRpcProvider {
+  lookupMs = 90_000;
+  lookupEveryMs = 3_000;
+  async sendTransactionUntil(signedTx: any, waitUntil: any): Promise<any> {
+    try {
+      return await super.sendTransactionUntil(signedTx, waitUntil);
+    } catch (e) {
+      const found = await this.findOutcome(signedTxHash(signedTx), signedTx.transaction.signerId);
+      if (found) return found;
+      throw e;
+    }
+  }
+  /** The executed outcome of a transaction, or null if no RPC knows it within lookupMs. */
+  async findOutcome(hash: string, sender: string): Promise<any | null> {
+    const end = Date.now() + this.lookupMs;
+    while (Date.now() < end) {
+      try {
+        const r: any = await this.viewTransactionStatus(hash, sender, "EXECUTED_OPTIMISTIC" as any);
+        if (r?.status && typeof r.status === "object" && ("SuccessValue" in r.status || "Failure" in r.status)) return r;
+      } catch {
+        /* not known yet, or this RPC is down: ask again */
+      }
+      await new Promise((res) => setTimeout(res, this.lookupEveryMs));
+    }
+    return null;
+  }
   constructor(private urls: string[]) { super({ url: urls[0]! }); }
   async sendJsonRpc<T>(method: string, params: object): Promise<T> {
     let last: unknown;

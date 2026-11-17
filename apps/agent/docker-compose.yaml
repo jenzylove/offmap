@@ -1,6 +1,6 @@
 services:
   offmap-agent:
-    image: ghcr.io/jenzylove/offmap-agent@sha256:05afd71b3f6b19f142dec7b9af84eb78f420636a3b7551cad0c44d145803f214
+    image: ghcr.io/jenzylove/offmap-agent@sha256:d0fbb1024931c45abbfe694bf776b26deb1c58a0bbc76e97a93784706bd70f8c
     platform: linux/amd64
     restart: always
     ports:

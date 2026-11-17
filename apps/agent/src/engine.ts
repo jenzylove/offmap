@@ -38,7 +38,7 @@ const log = (...a: unknown[]) => console.log(new Date().toISOString(), ...a);
 /** Last error per stage, served on /health so a failing batch is never invisible. */
 /** USDC (6 decimals) spent on Base gas since start, and USDC still owed in queued remainders. */
 export let gasSpentUsdc = 0n;
-export const engineErrors: Record<string, { at: string; error: string }> = {};
+export const engineErrors: Record<string, { at: string; error: string; retryAt?: string }> = {};
 const note = (key: string, e: unknown) => { engineErrors[key] = { at: new Date().toISOString(), error: String((e as any)?.message ?? e).slice(0, 500) }; };
 
 /** Pull the status of every waiting deposit; mark arrivals with the amount that reached the confidential balance. */
@@ -58,9 +58,10 @@ async function ensureGas(id: Identity, c: CohortConfig) {
   const addr = base.cohortAddress(id.mpcPredecessor, c.id);
   if ((await base.ethBalance(addr)) >= config.minGasEth) return;
   // Gas bought from the pooled balance is recorded and published on /health, never hidden in a payout.
-  gasSpentUsdc += 1_000_000n;
   const { quote } = await intents.payFromConfidential(id, { asset: USDC_INTENTS_ID, amount: "1000000", destinationAsset: ETH_BASE_ID, recipient: addr });
-  await intents.waitFor(quote.depositAddress);
+  const st = await intents.waitFor(quote.depositAddress);
+  if (st.status !== "SUCCESS") throw new Error(`gas purchase for ${c.id} ended ${st.status}; the batch waits for gas on ${addr}`);
+  gasSpentUsdc += 1_000_000n;
 }
 
 /**
@@ -408,6 +409,12 @@ async function needsLiquidation(s: State, c: CohortConfig): Promise<boolean> {
   } catch { return false; }
 }
 
+/** Consecutive failures per cohort and when it may run again. Each failed batch costs NEAR gas, so retries back off. */
+export const backoff: Record<string, { failures: number; until: number }> = {};
+export function backoffDelayMs(failures: number): number {
+  return Math.min(3600_000, 60_000 * 2 ** Math.max(0, failures - 1));
+}
+
 let running = false;
 export async function tick(id: Identity, s: State) {
   if (running) return;
@@ -421,7 +428,19 @@ export async function tick(id: Identity, s: State) {
       // Open positions are checked every tick for private liquidation; a quiet cohort runs a batch every 6 hours (each costs NEAR gas).
       const needsLiq = open && (await needsLiquidation(s, c));
       if (!moves && !needsLiq && !(open && Date.now() - last > 6 * 3600_000)) continue;
-      try { await runCohort(id, s, c); delete engineErrors[`cohort:${c.id}`]; } catch (e) { note(`cohort:${c.id}`, e); log("cohort", c.id, "failed, ledger unchanged:", String(e)); }
+      const b = backoff[c.id];
+      if (b && Date.now() < b.until) continue;
+      try {
+        await runCohort(id, s, c);
+        delete engineErrors[`cohort:${c.id}`];
+        delete backoff[c.id];
+      } catch (e) {
+        const failures = (b?.failures ?? 0) + 1;
+        backoff[c.id] = { failures, until: Date.now() + backoffDelayMs(failures) };
+        note(`cohort:${c.id}`, e);
+        engineErrors[`cohort:${c.id}`]!.retryAt = new Date(backoff[c.id]!.until).toISOString();
+        log("cohort", c.id, "failed", failures, "times, ledger unchanged, next try", engineErrors[`cohort:${c.id}`]!.retryAt, String(e));
+      }
     }
     await runPayouts(id, s);
     if (Date.now() - lastLeak > 3600_000) { lastLeak = Date.now(); await runLeakStudy(s).catch((e) => { note("leak", e); log("leak", String(e)); }); }
